@@ -65,15 +65,16 @@ public:
 };
 
 Conversation::Conversation()
-	: num_faces(0), last_face_shown(0), avatar_face(0, 0, 0, 0), conv_choices(0) {
+	: num_faces(0), last_face_shown(0), avatar_face(0, 0, 0, 0) {
 	const int max_faces = sizeof(face_info) / sizeof(face_info[0]);
 	for (int i = 0; i < max_faces; i++)
 		face_info[i] = 0;
 }
 
+//compiler complains about vtable
 Conversation::~Conversation() {
-	delete [] conv_choices;
 }
+
 
 
 void Conversation::clear_answers(void) {
@@ -456,8 +457,8 @@ void Conversation::show_avatar_choices(int num_choices, char **choices) {
 	// Draw portrait.
 	sman->paint_shape(mbox.x + face->get_xleft(),
 	                  mbox.y + face->get_yabove(), face);
-	delete [] conv_choices;     // Set up new list of choices.
-	conv_choices = new Rectangle[num_choices + 1];
+	conv_choices.clear();     // Set up new list of choices.
+	conv_choices.reserve(num_choices + 1);     // Set up new list of choices.
 	for (int i = 0; i < num_choices; i++) {
 		char text[256];
 		text[0] = 127;      // A circle.

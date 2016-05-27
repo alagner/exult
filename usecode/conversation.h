@@ -41,7 +41,7 @@ private:
 	int num_faces;
 	int last_face_shown;        // Index of last npc face shown.
 	Rectangle avatar_face;      // Area take by Avatar in conversation.
-	Rectangle *conv_choices;    // Choices during a conversation.
+	std::vector<Rectangle> conv_choices;    // Choices during a conversation.
 
 	std::vector<std::string> answers;
 	std::deque< std::vector<std::string> > answer_stack;
