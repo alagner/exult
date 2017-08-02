@@ -74,6 +74,7 @@ class Usecode_internal : public Usecode_machine {
 	vector<Usecode_value> statics;  // Global persistent vars.
 	Usecode_symbol_table *symtbl;   // (optional) symbol table.
 	std::deque<Stack_frame *> call_stack; // the call stack
+	std::map<Stack_frame *, uint8 *> except_stack; // the exception handling stack
 	Stack_frame *frame;     // One intrinsic uses this for now...
 	bool modified_map;      // We add/deleted/moved an object.
 	std::map<int, uint32> timers;   // Each has time in hours when set.
@@ -180,7 +181,7 @@ class Usecode_internal : public Usecode_machine {
 	static struct IntrinsicTableEntry {
 		UsecodeIntrinsicFn  func;
 		const char *name;
-	} intrinsic_table[], serpent_table[];
+	} intrinsic_table[], serpent_table[], serpentbeta_table[];
 	Usecode_value   Execute_Intrinsic(UsecodeIntrinsicFn func, const char *name, int intrinsic, int num_parms, Usecode_value parms[12]);
 	USECODE_INTRINSIC_DECL(NOP);
 	USECODE_INTRINSIC_DECL(UNKNOWN);
@@ -357,8 +358,10 @@ class Usecode_internal : public Usecode_machine {
 	USECODE_INTRINSIC_DECL(set_conversation_slot);
 	USECODE_INTRINSIC_DECL(change_npc_face0);
 	USECODE_INTRINSIC_DECL(change_npc_face1);
+	USECODE_INTRINSIC_DECL(reset_conv_face);
 	USECODE_INTRINSIC_DECL(init_conversation);
 	USECODE_INTRINSIC_DECL(end_conversation);
+	USECODE_INTRINSIC_DECL(stop_arresting);
 	USECODE_INTRINSIC_DECL(set_new_schedules);
 	USECODE_INTRINSIC_DECL(revert_schedule);
 	USECODE_INTRINSIC_DECL(run_schedule);
@@ -381,6 +384,9 @@ class Usecode_internal : public Usecode_machine {
 	USECODE_INTRINSIC_DECL(get_item_weight);
 	USECODE_INTRINSIC_DECL(get_skin_colour);
 	USECODE_INTRINSIC_DECL(printf);
+	// SI Beta:
+	USECODE_INTRINSIC_DECL(sib_path_run_usecode);
+	USECODE_INTRINSIC_DECL(sib_is_dest_reachable);
 	// Exult only:
 	USECODE_INTRINSIC_DECL(begin_casting_mode);
 	USECODE_INTRINSIC_DECL(get_usecode_fun);
@@ -418,7 +424,7 @@ class Usecode_internal : public Usecode_machine {
 	void previous_stack_frame();
 	void return_from_function(Usecode_value &retval);
 	void return_from_procedure();
-	void abort_function();
+	void abort_function(Usecode_value &retval);
 	int run();
 
 	// debugging functions

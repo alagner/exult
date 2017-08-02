@@ -34,6 +34,7 @@
 #include "ucscriptop.h"
 #include "databuf.h"
 #include "effects.h"
+#include "headers/ios_state.hpp"
 
 #include <iostream>
 #include <iomanip>
@@ -45,6 +46,8 @@ using std::setfill;
 using std::setw;
 
 using namespace Ucscript;
+
+extern bool intrinsic_trace;
 
 int Usecode_script::count = 0;
 Usecode_script *Usecode_script::first = 0;
@@ -286,6 +289,12 @@ void Usecode_script::handle_event(
 	if (act && act->get_casting_mode() == Actor::init_casting)
 		act->display_casting_frames();
 	Usecode_internal *usecode = reinterpret_cast<Usecode_internal *>(udata);
+#ifdef DEBUG
+    if (intrinsic_trace)
+        cout << "Executing script (" << i << ":" << cnt << ") for " 
+			 		  << obj << ", time: " <<
+				 		  	   	   curtime << endl;
+#endif
 	int delay = exec(usecode, false);
 	if (i < cnt) {          // More to do?
 		usecode->gwin->get_tqueue()->add(curtime + delay, this, udata);
@@ -299,6 +308,10 @@ void Usecode_script::handle_event(
 #endif
 	if (act && act->get_casting_mode() == Actor::show_casting_frames)
 		act->end_casting_mode(delay);
+#ifdef DEBUG
+    if (intrinsic_trace)
+	    cout << "Ending script for " << obj << endl;
+#endif
 	delete this;            // Hope this is safe.
 }
 
@@ -579,6 +592,7 @@ int Usecode_script::exec(
 			int track = val.get_int_value();
 			if (track >= 0)
 				Audio::get_ptr()->start_speech(track);
+			break;
 		}
 		case sfx: {     // Play sound effect!
 			Usecode_value &val = code->get_elem(++i);
@@ -641,9 +655,11 @@ int Usecode_script::exec(
 				step(usecode, opcode & 7, 0);
 				do_another = true;  // Guessing.
 			} else {
+				boost::io::ios_flags_saver flags(cout);
+				boost::io::ios_fill_saver fill(cout);
 				cout << "Und sched. opcode " << hex
 				     << "0x" << setfill('0') << setw(2)
-				     << opcode << std::dec << endl;
+				     << opcode << endl;
 			}
 			break;
 		}
@@ -756,6 +772,8 @@ Usecode_script *Usecode_script::restore(
 void Usecode_script::print(
     std::ostream &out
 ) const {
+	boost::io::ios_flags_saver flags(out);
+	boost::io::ios_fill_saver fill(out);
 	out << hex << "Obj = 0x" << setfill('0') << setw(2)
 	    << static_cast<void *>(obj) << ": " "(";
 	for (int i = 0; i < cnt; i++) {
@@ -764,5 +782,4 @@ void Usecode_script::print(
 		code->get_elem(i).print(out);
 	}
 	out << ") = ";
-	out << std::dec;
 }

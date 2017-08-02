@@ -41,6 +41,7 @@
 #include "miscinf.h"
 #include "gump_utils.h"
 #include "ignore_unused_variable_warning.h"
+#include "array_size.h"
 
 #ifndef UNDER_EMBEDDED_CE
 using std::cout;
@@ -197,7 +198,9 @@ SI_Game::SI_Game() {
 	fontManager.add_font("SIINTRO_FONT", INTRO_DAT, PATCH_INTRO, 14, 0);
 	fontManager.add_font("SMALL_BLACK_FONT", FONTS_VGA, PATCH_FONTS, 2, 0);
 	fontManager.add_font("TINY_BLACK_FONT", FONTS_VGA, PATCH_FONTS, 4, 0);
-	if (GAME_SI) {
+	// TODO: Verify if these map patches make sense for SI Beta, and come up
+	// with patches specific to it.
+	if (GAME_SI && !is_si_beta()) {
 		Map_patch_collection *mp = gwin->get_map_patches();
 		// Egg by "PC pirate" in forest:
 		mp->add(new Map_patch_remove(Object_spec(
@@ -223,6 +226,16 @@ SI_Game::SI_Game() {
 		// Dough on Moonshade display table
 		mp->add(new Map_patch_remove(Object_spec(
 		                                 Tile_coord(2369, 1896, 2), 863, 17, 0)));
+		// Skullcrusher Mountains
+		//    music instruments in wall
+		mp->add(new Map_patch_remove(Object_spec(
+		                                 Tile_coord(35, 1942, 0), 690, 0, 0)));
+		mp->add(new Map_patch_remove(Object_spec(
+		                                 Tile_coord(35, 1954, 0), 692, 0, 0)));
+		// FIXME: eggs shouldn't spawn inside of walls
+		//    egg spawning spiders in wall
+		mp->add(new Map_patch_remove(Object_spec(
+		                                 Tile_coord(60, 1937, 0), 275, 0, 0)));
 	}
 
 }
@@ -877,7 +890,7 @@ public:
 void ExCineFlic::load_flic() {
 	free_flic();
 
-	if (file) COUT("Loading " << file << ":" << index);
+	COUT("Loading " << file << ":" << index);
 
 	if (patch)
 		flic_obj = new U7multiobject(file, patch, index);
@@ -891,7 +904,7 @@ void ExCineFlic::load_flic() {
 }
 
 void ExCineFlic::free_flic() {
-	if (file) COUT("Freeing " << file << ":" << index);
+	COUT("Freeing " << file << ":" << index);
 
 	FORGET_OBJECT(player);
 	FORGET_ARRAY(buffer);
@@ -1134,7 +1147,7 @@ void SI_Game::end_game(bool success) {
 		ExCineVoc(74750, INTRO_DAT, PATCH_INTRO, 29)
 	};
 
-	int last_voc = sizeof(vocs) / sizeof(vocs[0]) - 1;
+	int last_voc = array_size(vocs) - 1;
 	int cur_voc = -1;
 
 	// Subtitle times
@@ -1150,7 +1163,7 @@ void SI_Game::end_game(bool success) {
 		ExSubEvent(74750, pagan, 3, sifont),	// "Perhaps you would join me in\nanother world alltogether?\nWe do have a score to settle!"
 	};
 
-	int last_sub = sizeof(subs) / sizeof(subs[0]) - 1;
+	int last_sub = array_size(subs) - 1;
 	int cur_sub = -1;
 
 	// Start the music
@@ -1236,7 +1249,7 @@ void SI_Game::end_game(bool success) {
 
 		bool updated = false;
 
-		if (flic->can_play()) updated = flic->play_it(win, time);
+		if (flic && flic->can_play()) updated = flic->play_it(win, time);
 
 		// Need to go to the next subtitle?
 		if (!speech && showing_subs && cur_sub <= last_sub) {
@@ -1438,7 +1451,7 @@ bool SI_Game::new_game(Vga_file &shapes) {
 					break;
 				default: {
 #if SDL_VERSION_ATLEAST(2, 0, 0)
-                                        if ((isTextInput && selected == 0) || (!isTextInput && keysym_unicode > (int)'~' && selected == 0))
+					if ((isTextInput && selected == 0) || (!isTextInput && keysym_unicode > +'~' && selected == 0))
 #else
 					if (selected == 0) // on the text input field?
 #endif
@@ -1446,10 +1459,10 @@ bool SI_Game::new_game(Vga_file &shapes) {
 						int len = strlen(npc_name);
 						char chr = 0;
 #if !(SDL_VERSION_ATLEAST(2, 0, 0))
-                                                keysym_unicode = event.key.keysym.unicode;
+						keysym_unicode = event.key.keysym.unicode;
 #endif
-                                                if ((keysym_unicode & 0xFF80) == 0)
-                                                       chr = keysym_unicode & 0x7F;
+						if ((keysym_unicode & 0xFF80) == 0)
+							chr = keysym_unicode & 0x7F;
 
 						if (chr >= ' ' && len < max_len) {
 							npc_name[len] = chr;

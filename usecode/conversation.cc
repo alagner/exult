@@ -29,6 +29,7 @@
 #include "useval.h"
 #include "miscinf.h"
 #include "data/exult_bg_flx.h"
+#include "array_size.h"
 
 #ifndef UNDER_EMBEDDED_CE
 using std::cout;
@@ -65,8 +66,8 @@ public:
 };
 
 Conversation::Conversation()
-	: num_faces(0), last_face_shown(0), avatar_face(0, 0, 0, 0) {
-	const int max_faces = sizeof(face_info) / sizeof(face_info[0]);
+	: num_faces(0), last_face_shown(0), avatar_face(0, 0, 0, 0), conv_choices(0) {
+	const int max_faces = array_size(face_info);
 	for (int i = 0; i < max_faces; i++)
 		face_info[i] = 0;
 }
@@ -135,7 +136,7 @@ void Conversation::remove_answer(Usecode_value &val) {
  */
 
 void Conversation::init_faces() {
-	const int max_faces = sizeof(face_info) / sizeof(face_info[0]);
+	const int max_faces = array_size(face_info);
 	for (int i = 0; i < max_faces; i++) {
 		if (face_info[i])
 			delete face_info[i];
@@ -210,7 +211,7 @@ void Conversation::set_face_rect(
 void Conversation::show_face(int shape, int frame, int slot) {
 	ShapeID face_sid(shape, frame, SF_FACES_VGA);
 
-	const int max_faces = sizeof(face_info) / sizeof(face_info[0]);
+	const int max_faces = array_size(face_info);
 
 	// Make sure mode is set right.
 	Palette *pal = gwin->get_pal(); // Watch for weirdness (lightning).
@@ -254,7 +255,7 @@ void Conversation::show_face(int shape, int frame, int slot) {
  */
 
 void Conversation::change_face_frame(int frame, int slot) {
-	const int max_faces = sizeof(face_info) / sizeof(face_info[0]);
+	const int max_faces = array_size(face_info);
 	// Make sure mode is set right.
 	Palette *pal = gwin->get_pal(); // Watch for weirdness (lightning).
 	if (pal->get_brightness() >= 300)
@@ -289,7 +290,7 @@ void Conversation::change_face_frame(int frame, int slot) {
  */
 
 void Conversation::remove_face(int shape) {
-	const int max_faces = sizeof(face_info) / sizeof(face_info[0]);
+	const int max_faces = array_size(face_info);
 	int i;              // See if already on screen.
 	for (i = 0; i < max_faces; i++)
 		if (face_info[i] && face_info[i]->face_num == shape)
@@ -306,7 +307,7 @@ void Conversation::remove_face(int shape) {
 void Conversation::remove_slot_face(
     int slot
 ) {
-	const int max_faces = sizeof(face_info) / sizeof(face_info[0]);
+	const int max_faces = array_size(face_info);
 	if (slot >= max_faces || !face_info[slot])
 		return;         // Invalid.
 	Npc_face_info *info = face_info[slot];
@@ -373,7 +374,7 @@ void Conversation::show_npc_message(const char *msg) {
  */
 
 bool Conversation::is_npc_text_pending() {
-	const int max_faces = sizeof(face_info) / sizeof(face_info[0]);
+	const int max_faces = array_size(face_info);
 	for (int i = 0; i < max_faces; i++)
 		if (face_info[i] && face_info[i]->text_pending)
 			return true;
@@ -385,7 +386,7 @@ bool Conversation::is_npc_text_pending() {
  */
 
 void Conversation::clear_text_pending() {
-	const int max_faces = sizeof(face_info) / sizeof(face_info[0]);
+	const int max_faces = array_size(face_info);
 	for (int i = 0; i < max_faces; i++) // Clear 'pending' flags.
 		if (face_info[i])
 			face_info[i]->text_pending = 0;
@@ -398,7 +399,7 @@ void Conversation::clear_text_pending() {
 void Conversation::show_avatar_choices(int num_choices, char **choices) {
 	bool SI = Game::get_game_type() == SERPENT_ISLE;
 	Main_actor *main_actor = gwin->get_main_actor();
-	const int max_faces = sizeof(face_info) / sizeof(face_info[0]);
+	const int max_faces = array_size(face_info);
 	// Get screen rectangle.
 	Rectangle sbox = gwin->get_game_rect();
 	int x = 0, y = 0;       // Keep track of coords. in box.
@@ -547,7 +548,7 @@ void Conversation::paint_faces(
 ) {
 	if (!num_faces)
 		return;
-	const int max_faces = sizeof(face_info) / sizeof(face_info[0]);
+	const int max_faces = array_size(face_info);
 	for (int i = 0; i < max_faces; i++) {
 		Npc_face_info *finfo = face_info[i];
 		if (!finfo)

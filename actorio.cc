@@ -37,6 +37,7 @@
 #include "ucmachine.h"
 #include "shapeinf.h"
 #include "monstinf.h"
+#include "array_size.h"
 
 using std::ios;
 using std::cout;
@@ -184,7 +185,7 @@ void Actor::read(
 		} else
 			set_skin_color(-1);
 
-		if ((strength_val << 7) & 1) set_flag(Obj_flags::freeze);
+		if ((strength_val >> 7) & 1) set_flag(Obj_flags::freeze);
 	}
 
 	if (is_dying() &&       // Now we know health, strength.
@@ -208,7 +209,7 @@ void Actor::read(
 	// Combat skill (0-6), Petra (7)
 	int combat_val = nfile->read1();
 	set_property(static_cast<int>(Actor::combat), combat_val & 0x7F);
-	if ((combat_val << 7) & 1) set_flag(Obj_flags::petra);
+	if ((combat_val >> 7) & 1) set_flag(Obj_flags::petra);
 
 	schedule_type = nfile->read1();
 	int amode = nfile->read1(); // Default attack mode
@@ -736,7 +737,7 @@ void Actor::write_contents(
     DataSource *out
 ) {
 	if (!objects.is_empty()) {  // Now write out what's inside.
-		const int num_spots = static_cast<int>(sizeof(spots) / sizeof(spots[0]));
+		const int num_spots = static_cast<int>(array_size(spots));
 		int i;
 
 		for (i = 0; i < num_spots; ++i) {

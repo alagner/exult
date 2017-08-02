@@ -73,6 +73,7 @@
 #include "spellbook.h"
 #include "usefuns.h"
 #include "ignore_unused_variable_warning.h"
+#include "array_size.h"
 
 #ifdef USE_EXULTSTUDIO
 #include "server.h"
@@ -264,9 +265,9 @@ void Actor::init(
 	if (!avatar_frames[0])
 		init_default_frames();
 	size_t i;
-	for (i = 0; i < sizeof(properties) / sizeof(properties[0]); i++)
+	for (i = 0; i < array_size(properties); i++)
 		properties[i] = 0;
-	for (i = 0; i < sizeof(spots) / sizeof(spots[0]); i++)
+	for (i = 0; i < array_size(spots); i++)
 		spots[i] = 0;
 }
 
@@ -384,7 +385,7 @@ Game_object *Actor::find_weapon_ammo(
 
 	// Search readied weapons first.
 	static enum Ready_type_Exult wspots[] = {lhand, rhand, back_2h, belt};
-	const int num_weapon_spots = sizeof(wspots) / sizeof(wspots[0]);
+	const int num_weapon_spots = array_size(wspots);
 	for (int i = 0; i < num_weapon_spots; i++) {
 		Game_object *obj = spots[static_cast<int>(wspots[i])];
 		if (!obj || obj->get_shapenum() != weapon)
@@ -652,7 +653,7 @@ bool Actor::empty_hand(
 	static int chkspots[] = {belt, backpack};
 	add_dirty();
 	obj->remove_this(1);
-	for (size_t i = 0; i < sizeof(chkspots) / sizeof(chkspots[0]); i++)
+	for (size_t i = 0; i < array_size(chkspots); i++)
 		if (add_readied(obj, chkspots[i], true, true))      // Slot free?
 			return true;
 
@@ -914,7 +915,7 @@ void Actor::refigure_gear() {
 	                                      };
 	int powers = 0, immune = 0;
 	light_sources = 0;
-	for (size_t i = 0; i < sizeof(locs) / sizeof(locs[0]); i++) {
+	for (size_t i = 0; i < array_size(locs); i++) {
 		Game_object *worn = spots[static_cast<int>(locs[i])];
 		if (worn) {
 			Shape_info &info = worn->get_info();
@@ -1731,7 +1732,7 @@ void Actor::set_schedule_type(
 			schedule = new Dance_schedule(this);
 			break;
 		case Schedule::farm:    // Use a scythe.
-			schedule = new Tool_schedule(this, 618);
+			schedule = new Farmer_schedule(this);
 			break;
 		case Schedule::tend_shop:// For now.
 			empty_hands();
@@ -2311,6 +2312,8 @@ void Actor::update_from_studio(
 	if (npc_num == 0 || npc->get_flag(Obj_flags::in_party))
 		npc->set_alignment(good);
 	cout << "Npc updated" << endl;
+#else
+	ignore_unused_variable_warning(data, datalen);
 #endif
 }
 
@@ -2515,7 +2518,7 @@ bool Actor::can_act_charmed() {
  */
 
 void Actor::set_charmed_combat() {
-	if (Combat::charmed_more_difficult && 
+	if (Combat::charmed_more_difficult &&
 	    (is_in_party() || this == gwin->get_main_actor()) &&
 	    get_effective_alignment() != good) {
 		set_schedule_type(Schedule::combat);
@@ -2633,7 +2636,7 @@ int Actor::apply_damage(
 		armor += minf->get_armor();
 
 	// Armor defense and immunities only affect UI_apply_damage.
-	const int num_spots = sizeof(spots) / sizeof(spots[0]);
+	const int num_spots = array_size(spots);
 	for (int i = 0; i < num_spots; i++) {
 		Game_object *obj = spots[i];
 		if (obj) {
@@ -2994,11 +2997,13 @@ int Actor::get_effective_prop(
 		if (get_flag(Obj_flags::paralyzed) || get_flag(Obj_flags::asleep) ||
 		        is_knocked_out())
 			return prop == Actor::dexterity ? 0 : 1;
+		// FALL THROUGH
 	case Actor::intelligence:
 		if (is_dead())
 			return prop == Actor::dexterity ? 0 : 1;
 		else if (get_flag(Obj_flags::charmed) || get_flag(Obj_flags::asleep))
 			val--;
+		// FALL THROUGH
 	case Actor::strength:
 		if (get_flag(Obj_flags::might))
 			val += (val < 15 ? val : 15);   // Add up to 15.
@@ -3283,7 +3288,7 @@ int Actor::figure_warmth(
 	int warmth = -75;       // Base value.
 
 	static enum Ready_type_Exult locs[] = {head, cloak, feet, torso, gloves, legs};
-	for (size_t i = 0; i < sizeof(locs) / sizeof(locs[0]); i++) {
+	for (size_t i = 0; i < array_size(locs); i++) {
 		Game_object *worn = spots[static_cast<int>(locs[i])];
 		if (worn)
 			warmth += worn->get_info().get_object_warmth(worn->get_framenum());
@@ -3355,7 +3360,7 @@ bool Actor::usecode_attack() {
 
 void Actor::init_readied(
 ) {
-	for (size_t i = 0; i < sizeof(spots) / sizeof(spots[0]); i++)
+	for (size_t i = 0; i < array_size(spots); i++)
 		if (spots[i])
 			call_readied_usecode(i, spots[i],
 			                     Usecode_machine::readied);
@@ -3375,7 +3380,7 @@ void Actor::remove(
 	// Definitely DO NOT call if dead!
 	if (!is_dead()
 		&& !ucmachine->in_usecode_for(obj, Usecode_machine::unreadied)
-		&& !(GAME_SI && ucmachine->in_usecode_for(gwin->get_main_actor(), Usecode_machine::died))) // Fix for #1887 - Hang when leaving SI dream world 
+		&& !(GAME_SI && ucmachine->in_usecode_for(gwin->get_main_actor(), Usecode_machine::died))) // Fix for #1887 - Hang when leaving SI dream world
 		call_readied_usecode(index, obj, Usecode_machine::unreadied);
 	Container_game_object::remove(obj);
 	if (index >= 0) {
@@ -3493,7 +3498,7 @@ int Actor::add_readied(
     bool noset
 ) {
 	// Is Out of range?
-	if (index < 0 || index >= static_cast<int>(sizeof(spots) / sizeof(spots[0])))
+	if (index < 0 || index >= static_cast<int>(array_size(spots)))
 		return 0;
 
 	// Already something there? Try to drop into it.
@@ -3559,10 +3564,22 @@ int Actor::add_readied(
 int Actor::find_readied(
     Game_object *obj
 ) {
-	for (size_t i = 0; i < sizeof(spots) / sizeof(spots[0]); i++)
+	for (size_t i = 0; i < array_size(spots); i++)
 		if (spots[i] == obj)
 			return i;
 	return -1;
+}
+
+/*
+ *  Get object readied at given slot index.
+ *
+ *  Output: Object pointer, or null if invalid slot ID given.
+ */
+
+Game_object *Actor::get_readied(int index) const {
+	return index >= 0 &&
+	       index < static_cast<int>(array_size(spots)) ?
+	       spots[index] : 0;
 }
 
 /*
@@ -3656,7 +3673,7 @@ int Actor::get_armor_points(
 	                                        lhand, rhand, lfinger, rfinger, legs, feet, earrings,
 	                                        gloves
 	                                        };
-	const int num_armor_spots = sizeof(aspots) / sizeof(aspots[0]);
+	const int num_armor_spots = array_size(aspots);
 	for (int i = 0; i < num_armor_spots; i++) {
 		Game_object *armor = spots[static_cast<int>(aspots[i])];
 		if (armor)

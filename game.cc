@@ -47,6 +47,7 @@
 #include "shapeid.h"
 #include "gamemgr/modmgr.h"
 #include "shapes/miscinf.h"
+#include "array_size.h"
 
 #ifndef UNDER_EMBEDDED_CE
 using std::cout;
@@ -63,6 +64,7 @@ bool Game::editing_flag = false;
 Game *game = 0;
 Exult_Game Game::game_type = NONE;
 bool Game::expansion = false;
+bool Game::sibeta = false;
 
 static char av_name[17] = "";
 static int av_sex = -1;
@@ -108,6 +110,7 @@ Game *Game::create_game(BaseGameInfo *mygame) {
 	modtitle = mygame->get_mod_title();
 	game_type = mygame->get_game_type();
 	expansion = mygame->have_expansion();
+	sibeta = mygame->is_si_beta();
 	editing_flag = mygame->being_edited();
 
 	// Need to do this here. Maybe force on for EXULT_DEVEL_GAME too?
@@ -116,7 +119,7 @@ Game *Game::create_game(BaseGameInfo *mygame) {
 	sman->set_paperdoll_status(game_type == SERPENT_ISLE || str == "yes");
 	config->set("config/gameplay/bg_paperdolls", str, true);
 	char buf[256];
-	if (mygame && mygame->get_mod_title() != "")
+	if (mygame->get_mod_title() != "")
 		snprintf(buf, 256, " with the '%s' modification.",
 		         mygame->get_mod_title().c_str());
 	else
@@ -212,7 +215,7 @@ const str_int_pair &Game::get_resource(const char *name) {
 		return resources[name];
 	} else {
 		char buf[250];
-		snprintf(buf, sizeof(buf) / sizeof(buf[0]),
+		snprintf(buf, array_size(buf),
 		         "Game::get_resource: Illegal resource requested: '%s'", name);
 		throw exult_exception(buf);
 	}
@@ -352,13 +355,10 @@ bool Game::show_menu(bool skip) {
 			play = true;
 			break;
 		case 1: // New Game
-			if (!created) {
-				if (new_game(menushapes))
-					exitmenu = true;
-				else
-					break;
-			} else
+			if (new_game(menushapes))
 				exitmenu = true;
+			else
+				break;
 			fadeout = false;
 			play = true;
 			break;

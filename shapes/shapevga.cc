@@ -52,6 +52,7 @@
 #include "ready.h"
 #include "data_utils.h"
 #include "ignore_unused_variable_warning.h"
+#include "array_size.h"
 
 using std::ifstream;
 using std::ios;
@@ -209,7 +210,8 @@ void Shapes_vga_file::Read_Shapeinf_text_data_file(
 	                          "effective_hps", "lightweight_object", "warmth_data",
 	                          "quantity_frames", "locked_containers", "content_rules",
 	                          "volatile_explosive", "framenames", "altready", "barge_type",
-	                          "frame_powers", "is_jawbone", "is_mirror", "field_type",
+	                          "frame_powers", "is_jawbone", "is_mirror", "on_fire",
+	                          "extradimensional_storage", "field_type",
 	                          "frame_usecode"
 	                         };
 	Base_reader *readers[] = {
@@ -305,6 +307,16 @@ void Shapes_vga_file::Read_Shapeinf_text_data_file(
 		Bit_text_reader_functor < unsigned short, Shape_info,
 		&Shape_info::shape_flags, Shape_info::mirror > ,
 		Patch_flags_functor<mirror_flag, Shape_info> > (info),
+		// Objects on fire.
+		new Functor_multidata_reader < Shape_info,
+		Bit_text_reader_functor < unsigned short, Shape_info,
+		&Shape_info::shape_flags, Shape_info::on_fire > ,
+		Patch_flags_functor<on_fire_flag, Shape_info> > (info),
+		// Containers with unlimited storage.
+		new Functor_multidata_reader < Shape_info,
+		Bit_text_reader_functor < unsigned short, Shape_info,
+		&Shape_info::shape_flags, Shape_info::extradimensional_storage > ,
+		Patch_flags_functor<extradimensional_storage_flag, Shape_info> > (info),
 		// For field types.
 		new Functor_multidata_reader < Shape_info,
 		Text_reader_functor < char, Shape_info,
@@ -315,8 +327,8 @@ void Shapes_vga_file::Read_Shapeinf_text_data_file(
 		Vector_reader_functor < Frame_usecode_info, Shape_info,
 		&Shape_info::frucinf > > (info),
 	};
-	int numsections = sizeof(sections) / sizeof(sections[0]);
-	int numreaders = sizeof(readers) / sizeof(readers[0]);
+	int numsections = array_size(sections);
+	int numreaders = array_size(readers);
 	assert(numsections == numreaders);
 	int flxres = game_type == BLACK_GATE ?
 	             EXULT_BG_FLX_SHAPE_INFO_TXT : EXULT_SI_FLX_SHAPE_INFO_TXT;
@@ -340,8 +352,8 @@ void Shapes_vga_file::Read_Bodies_text_data_file(
 		Class_reader_functor < Body_info, Shape_info,
 		&Shape_info::body > > (info)
 	};
-	int numsections = sizeof(sections) / sizeof(sections[0]);
-	int numreaders = sizeof(readers) / sizeof(readers[0]);
+	int numsections = array_size(sections);
+	int numreaders = array_size(readers);
 	assert(numsections == numreaders);
 	int flxres = game_type == BLACK_GATE ?
 	             EXULT_BG_FLX_BODIES_TXT : EXULT_SI_FLX_BODIES_TXT;
@@ -365,8 +377,8 @@ void Shapes_vga_file::Read_Paperdoll_text_data_file(
 		Vector_reader_functor < Paperdoll_item, Shape_info,
 		&Shape_info::objpaperdoll > > (info),
 	};
-	int numsections = sizeof(sections) / sizeof(sections[0]);
-	int numreaders = sizeof(readers) / sizeof(readers[0]);
+	int numsections = array_size(sections);
+	int numreaders = array_size(readers);
 	assert(numsections == numreaders);
 	int flxres = game_type == BLACK_GATE ?
 	             EXULT_BG_FLX_PAPERDOL_INFO_TXT : EXULT_SI_FLX_PAPERDOL_INFO_TXT;

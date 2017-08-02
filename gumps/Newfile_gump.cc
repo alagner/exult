@@ -40,6 +40,7 @@
 #include "party.h"
 #include "Text_button.h"
 #include "miscinf.h"
+#include "array_size.h"
 
 #ifndef UNDER_EMBEDDED_CE
 using std::atoi;
@@ -246,24 +247,24 @@ bool Newfile_button::activate(
 	if (button != 1) return false;
 	int shapenum = get_shapenum();
 	if (shapenum == EXULT_FLX_SAV_DOWNDOWN_SHP)
-		reinterpret_cast<Newfile_gump *>(parent)->scroll_page(1);
+		static_cast<Newfile_gump *>(parent)->scroll_page(1);
 	else if (shapenum == EXULT_FLX_SAV_DOWN_SHP)
-		reinterpret_cast<Newfile_gump *>(parent)->scroll_line(1);
+		static_cast<Newfile_gump *>(parent)->scroll_line(1);
 	else if (shapenum == EXULT_FLX_SAV_UP_SHP)
-		reinterpret_cast<Newfile_gump *>(parent)->scroll_line(-1);
+		static_cast<Newfile_gump *>(parent)->scroll_line(-1);
 	else if (shapenum == EXULT_FLX_SAV_UPUP_SHP)
-		reinterpret_cast<Newfile_gump *>(parent)->scroll_page(-1);
+		static_cast<Newfile_gump *>(parent)->scroll_page(-1);
 	return true;
 }
 
 bool Newfile_Textbutton::activate(int button) {
 	if (button != 1) return false;
 	if (text == loadtext)
-		reinterpret_cast<Newfile_gump *>(parent)->load();
+		static_cast<Newfile_gump *>(parent)->load();
 	else if (text == savetext)
-		reinterpret_cast<Newfile_gump *>(parent)->save();
+		static_cast<Newfile_gump *>(parent)->save();
 	else if (text == deletetext)
-		reinterpret_cast<Newfile_gump *>(parent)->delete_file();
+		static_cast<Newfile_gump *>(parent)->delete_file();
 	else if (text == canceltext)
 		parent->close();
 	return true;
@@ -317,7 +318,7 @@ Newfile_gump::~Newfile_gump(
 ) {
 	gwin->get_tqueue()->resume(SDL_GetTicks());
 	size_t i;
-	for (i = 0; i < sizeof(buttons) / sizeof(buttons[0]); i++)
+	for (i = 0; i < array_size(buttons); i++)
 		delete buttons[i];
 
 	FreeSaveGameDetails();
@@ -638,7 +639,7 @@ bool Newfile_gump::mouse_down(
 
 	pushed = Gump::on_button(mx, my);
 	// Try buttons at bottom.
-	if (!pushed) for (size_t i = 0; i < sizeof(buttons) / sizeof(buttons[0]); i++)
+	if (!pushed) for (size_t i = 0; i < array_size(buttons); i++)
 			if (buttons[i] && buttons[i]->on_button(mx, my)) {
 				pushed = buttons[i];
 				break;

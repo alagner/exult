@@ -36,6 +36,7 @@
 #include "Configuration.h"
 #include "Flex.h"
 #include "databuf.h"
+#include "crc.h"
 
 using std::ifstream;
 using std::cout;
@@ -95,6 +96,7 @@ ModInfo::ModInfo(
     const string &mod,
     const string &path,
     bool exp,
+    bool sib,
     bool ed,
     const string &cfg
 ) {
@@ -103,6 +105,7 @@ ModInfo::ModInfo(
 	mod_title = mod;
 	path_prefix = path;
 	expansion = exp;
+	sibeta = sib;
 	editing = ed;
 	configfile = cfg;
 	Configuration modconfig(configfile, "modinfo");
@@ -227,12 +230,19 @@ ModInfo::ModInfo(
 #include "files/zip/zip.h"
 #endif
 
-// Need this for ES.
-static const char *get_game_identity(const char *savename, const string &title) {
+/*
+ *  Return string from IDENTITY in a savegame.
+ *	Also needed by ES.
+ *
+ *  Output: identity if found.
+ *      "" if error (or may throw exception).
+ *      "*" if older savegame.
+ */
+string get_game_identity(const char *savename, const string &title) {
 	char *game_identity = 0;
 	ifstream in_stream;
 	if (!U7exists(savename))
-		return newstrdup(title.c_str());
+		return title;
 	if (!Flex::is_flex(savename))
 #ifdef HAVE_ZIP_SUPPORT
 	{
@@ -241,7 +251,7 @@ static const char *get_game_identity(const char *savename, const string &title) 
 			// Find IDENTITY, ignoring case.
 			if (unzLocateFile(unzipfile, "identity", 2) != UNZ_OK) {
 				unzClose(unzipfile);
-				return newstrdup("*");      // Old game.  Return wildcard.
+				return "*";      // Old game.  Return wildcard.
 			} else {
 				unz_file_info file_info;
 				unzGetCurrentFileInfo(unzipfile, &file_info, NULL,
@@ -262,7 +272,7 @@ static const char *get_game_identity(const char *savename, const string &title) 
 		}
 	}
 #else
-		return newstrdup(title.c_str());
+		return title.c_str();
 #endif
 	else {
 		U7open(in_stream, savename);        // Open file.
@@ -296,15 +306,15 @@ static const char *get_game_identity(const char *savename, const string &title) 
 		delete [] finfo;
 	}
 	if (!game_identity)
-		return newstrdup(title.c_str());
+		return title;
 	// Truncate identity
 	char *ptr = game_identity;
 	for (; (*ptr != 0x1a && *ptr != 0x0d); ptr++)
 		;
 	*ptr = 0;
-	ptr = newstrdup(game_identity);
+	string id = game_identity;
 	delete [] game_identity;
-	return ptr;
+	return id;
 }
 
 // ModManager: class that manages a game's modlist and paths
@@ -353,47 +363,60 @@ ModManager::ModManager(const string &name, const string &menu, bool needtitle,
 	string initgam_path(static_dir + "/initgame.dat");
 	found = U7exists(initgam_path);
 
-	const char *static_identity;
+	string static_identity;
 	if (found) {
 		static_identity = get_game_identity(initgam_path.c_str(), cfgname);
 		if (!silent)
 			cout << "found game with identity '" << static_identity << "'" << endl;
 	} else { // New game still under development.
-		static_identity = newstrdup("DEVEL GAME");
+		static_identity = "DEVEL GAME";
 		if (!silent)
 			cout << "but it wasn't there." << endl;
 	}
 
 	string new_title;
-	if (!strcmp(static_identity, "ULTIMA7")) {
+	if (static_identity == "ULTIMA7") {
 		type = BLACK_GATE;
 		path_prefix = to_uppercase(CFG_BG_NAME);
 		if (needtitle)
 			new_title = CFG_BG_TITLE;
 		expansion = false;
-	} else if (!strcmp(static_identity, "FORGE")) {
+		sibeta = false;
+	} else if (static_identity == "FORGE") {
 		type = BLACK_GATE;
 		path_prefix = to_uppercase(CFG_FOV_NAME);
 		if (needtitle)
 			new_title = CFG_FOV_TITLE;
 		expansion = true;
-	} else if (!strcmp(static_identity, "SERPENT ISLE")) {
+		sibeta = false;
+	} else if (static_identity == "SERPENT ISLE") {
 		type = SERPENT_ISLE;
-		path_prefix = to_uppercase(CFG_SI_NAME);
-		if (needtitle)
-			new_title = CFG_SI_TITLE;
 		expansion = false;
-	} else if (!strcmp(static_identity, "SILVER SEED")) {
+		uint32 crc = crc32_syspath((static_dir + "/mainshp.flx").c_str());
+		if (crc == 0xdbdc2676) {
+			path_prefix = to_uppercase(CFG_SIB_NAME);
+			if (needtitle)
+				new_title = CFG_SIB_TITLE;
+			sibeta = true;
+		} else {
+			path_prefix = to_uppercase(CFG_SI_NAME);
+			if (needtitle)
+				new_title = CFG_SI_TITLE;
+			sibeta = false;
+		}
+	} else if (static_identity == "SILVER SEED") {
 		type = SERPENT_ISLE;
 		path_prefix = to_uppercase(CFG_SS_NAME);
 		if (needtitle)
 			new_title = CFG_SS_TITLE;
 		expansion = true;
+		sibeta = false;
 	} else {
 		type = EXULT_DEVEL_GAME;
 		path_prefix = "DEVEL" + to_uppercase(name);
 		new_title = menu;   // To be safe.
 		expansion = false;
+		sibeta = false;
 	}
 
 	// If the "default" path selected above is already taken, then use a unique
@@ -402,11 +425,9 @@ ModManager::ModManager(const string &name, const string &menu, bool needtitle,
 		path_prefix = to_uppercase(name);
 	}
 
-	if (found)
-		delete[] static_identity;
-
 	menustring = needtitle ? new_title : menu;
 	// NOW we can store the path.
+	add_system_path("<" + path_prefix + "_PATH>", game_path);
 	add_system_path("<" + path_prefix + "_STATIC>", static_dir);
 
 	{
@@ -424,7 +445,7 @@ ModManager::ModManager(const string &name, const string &menu, bool needtitle,
 		config->value(config_path.c_str(), patch_dir, default_dir.c_str());
 		add_system_path("<" + path_prefix + "_PATCH>", patch_dir);
 
-		// <source> setting: default is "$game_path/patch".
+		// <source> setting: default is "$game_path/source".
 		config_path = base_cfg_path + "/source";
 		config->value(config_path.c_str(), patch_dir, default_dir.c_str());
 		add_system_path("<" + path_prefix + "_SOURCE>", src_dir);
@@ -468,7 +489,7 @@ void ModManager::gather_mods() {
 			string modtitle = filenames[i].substr(ptroff,
 			                                      filenames[i].size() - ptroff - 4);
 			modlist.push_back(ModInfo(type, cfgname,
-			                          modtitle, path_prefix, expansion,
+			                          modtitle, path_prefix, expansion, sibeta,
 			                          editing, filenames[i]));
 		}
 	}
@@ -491,7 +512,7 @@ int ModManager::find_mod_index(const string &name) {
 
 void ModManager::add_mod(const string &mod, const string &modconfig) {
 	modlist.push_back(ModInfo(type, cfgname, mod, path_prefix,
-	                          expansion, editing, modconfig));
+	                          expansion, sibeta, editing, modconfig));
 	store_system_paths();
 }
 
@@ -549,7 +570,8 @@ void ModManager::get_game_paths(const string &game_path) {
 	U7mkdir(gamedat_dir.c_str(), 0755);
 
 #ifdef DEBUG_PATHS
-	        << " gamedat directory to: " << gamedat_dir << endl;
+	cout << "setting " << cfgname
+	     << " gamedat directory to: " << gamedat_dir << endl;
 	cout << "setting " << cfgname
 	     << " savegame directory to: " << savegame_dir << endl;
 #endif
@@ -558,36 +580,33 @@ void ModManager::get_game_paths(const string &game_path) {
 // GameManager: class that manages the installed games
 GameManager::GameManager(bool silent) {
 	games.clear();
-	bg = fov = si = ss = 0;
+	bg = fov = si = ss = sib = 0;
 
 	// Search for games defined in exult.cfg:
 	string config_path("config/disk/game"), game_title;
 	std::vector<string> gamestrs = config->listkeys(config_path, false);
+	std::vector<string> checkgames;
+	checkgames.reserve(checkgames.size()+5);	// +5 in case the four below are not in the cfg.
+	// The original games plus expansions.
+	checkgames.push_back(CFG_BG_NAME);
+	checkgames.push_back(CFG_FOV_NAME);
+	checkgames.push_back(CFG_SI_NAME);
+	checkgames.push_back(CFG_SS_NAME);
+	checkgames.push_back(CFG_SIB_NAME);
 
-	bool nobg = true, nosi = true, nofov = true, noss = true;
 	for (std::vector<string>::iterator it = gamestrs.begin();
 	        it != gamestrs.end(); ++it) {
-		if (*it == CFG_BG_NAME)
-			nobg = false;
-		else if (*it == CFG_FOV_NAME)
-			nofov = false;
-		else if (*it == CFG_SI_NAME)
-			nosi = false;
-		else if (*it == CFG_SS_NAME)
-			noss = false;
+		if (*it != CFG_BG_NAME && *it != CFG_FOV_NAME &&
+		    *it != CFG_SI_NAME && *it != CFG_SS_NAME &&
+		    *it != CFG_SIB_NAME)
+			checkgames.push_back(*it);
 	}
 
-	// The original games plus expansions.
-	if (nobg) gamestrs.push_back(CFG_BG_NAME);
-	if (nofov) gamestrs.push_back(CFG_FOV_NAME);
-	if (nosi) gamestrs.push_back(CFG_SI_NAME);
-	if (noss) gamestrs.push_back(CFG_SS_NAME);
+	games.reserve(checkgames.size());
+	int bgind = -1, fovind = -1, siind = -1, ssind = -1, sibind = -1;
 
-	games.reserve(gamestrs.size());
-	int bgind = -1, fovind = -1, siind = -1, ssind = -1;
-
-	for (std::vector<string>::iterator it = gamestrs.begin();
-	        it != gamestrs.end(); ++it) {
+	for (std::vector<string>::iterator it = checkgames.begin();
+	        it != checkgames.end(); ++it) {
 		string gameentry = *it;
 		// Load the paths for all games found:
 		string base_title = gameentry, new_title;
@@ -601,14 +620,19 @@ GameManager::GameManager(bool silent) {
 		if (!game.being_edited() && !game.is_there())
 			continue;
 		if (game.get_game_type() == BLACK_GATE) {
-			if (game.have_expansion())
-				fovind = games.size();
-			else
+			if (game.have_expansion()) {
+				if (fovind == -1)
+					fovind = games.size();
+			} else if (bgind == -1)
 				bgind = games.size();
 		} else if (game.get_game_type() == SERPENT_ISLE) {
-			if (game.have_expansion())
-				ssind = games.size();
-			else
+			if (game.is_si_beta()) {
+				if (sibind == -1)
+					sibind = games.size();
+			} else if (game.have_expansion()) {
+				if (ssind == -1)
+					ssind = games.size();
+			} else if (siind == -1)
 				siind = games.size();
 		}
 
@@ -623,6 +647,8 @@ GameManager::GameManager(bool silent) {
 		si = &(games[siind]);
 	if (ssind >= 0)
 		ss = &(games[ssind]);
+	if (sibind >= 0)
+		sib = &(games[sibind]);
 
 	// Sane defaults.
 	add_system_path("<ULTIMA7_STATIC>", ".");

@@ -25,12 +25,15 @@
 #include <iomanip>
 #include <cstring>
 #include <cstdlib>
+#include <set>
 #include <vector>
+#include <sstream>
 #include <stdexcept>
 #include "ucdata.h"
 #include "ops.h"
 #include "files/utils.h"
 #include "usecode/ucsymtbl.h"
+#include "headers/ios_state.hpp"
 
 using std::cout;
 using std::setw;
@@ -60,6 +63,7 @@ void UCData::parse_params(const unsigned int argc, char **argv) {
 		else if (strcmp(argv[i], "-bg") == 0) options._game = UCOptions::GAME_BG;
 		else if (strcmp(argv[i], "-ss") == 0) options._game = UCOptions::GAME_SS;
 		else if (strcmp(argv[i], "-fov") == 0) options._game = UCOptions::GAME_FOV;
+		else if (strcmp(argv[i], "-sib") == 0) options._game = UCOptions::GAME_SIB;
 		else if (strcmp(argv[i], "-u8") == 0) options._game = UCOptions::GAME_U8;
 
 		else if (strcmp(argv[i], "-a") == 0) options.mode_all = true;
@@ -102,6 +106,9 @@ void UCData::parse_params(const unsigned int argc, char **argv) {
 		} else if ((string(argv[i]).size() > 2) && string(argv[i]).substr(0, 2) == "-i") {
 			_input_usecode_file = string(argv[i]).substr(2, string(argv[i]).size() - 2);
 			if (options.verbose) cout << "Inputting from file: " << _input_usecode_file << endl;
+		} else if ((string(argv[i]).size() > 2) && string(argv[i]).substr(0, 2) == "-g") {
+			_global_flags_file = string(argv[i]).substr(2, string(argv[i]).size() - 2);
+			if (options.verbose) cout << "Reading flag names from file: " << _global_flags_file << endl;
 		} else {
 			cout << "unsupported parameter " << argv[i] << " detected. countinuing." << endl;
 		}
@@ -116,6 +123,9 @@ void UCData::open_usecode(const string &filename) {
 }
 
 void UCData::disassamble(ostream &o) {
+	boost::io::ios_flags_saver flags(o);
+	boost::io::ios_fill_saver fill(o);
+	load_globals(o);
 	load_funcs(o);
 	analyse_classes();
 
@@ -137,7 +147,7 @@ void UCData::disassamble(ostream &o) {
 			o << UCFunc::STATICNAME << ' ' << UCFunc::GLOBALSTATICPREFIX << std::setw(4) << i << ';' << endl;
 		o << endl;
 	}
-	
+
 	Usecode_class_symbol *cls = 0;
 	bool _foundfunc = false; //did we find and print the function?
 	for (unsigned int i = 0; i < _funcs.size(); i++) {
@@ -198,7 +208,7 @@ void UCData::disassamble(ostream &o) {
 		o << "Functions: " << _funcs.size() << endl;
 
 	if (options.output_list)
-		o << endl << "Functions: " << setbase(10) << _funcs.size() << setbase(16) << endl;
+		o << endl << "Functions: " << setbase(10) << _funcs.size() << endl;
 
 	if (options.output_trans_table)
 		o << "</>" << endl;
@@ -210,7 +220,7 @@ void UCData::disassamble(ostream &o) {
     with 'variables' in the opcodes.txt file, that signify if it's a pop/push and a flag */
 void UCData::dump_flags(ostream &o) {
 	if (!options.game_u7()) {
-		o << "This option only works for U7:BG, U7:FoV, U7:SI and U7:SS" << endl;
+		o << "This option only works for U7:BG, U7:FoV, U7:SI Beta, U7:SI and U7:SS" << endl;
 		return;
 	}
 	load_funcs(o);
@@ -292,6 +302,48 @@ void UCData::file_open(const string &filename) {
 #include "tools/dbgutils.h"
 #endif
 
+void UCData::load_globals(ostream &o) {
+	if (_global_flags_file.empty())
+		return;
+	try {
+		std::ifstream gflags;
+		U7open(gflags, _global_flags_file.c_str(), false);
+		std::map<unsigned int, std::string>& FlagMap = UCFunc::FlagMap;
+		std::set<std::string> flags;
+		unsigned int ii = 0;
+		o << "enum GlobalFlags {" << endl;
+		std::string flagname;
+		std::getline(gflags, flagname, '\0');
+		bool first = true;
+		boost::io::ios_flags_saver oflags(o);
+		boost::io::ios_fill_saver fill(o);
+		o << setbase(16) << setfill('0');
+		while (gflags.good()) {
+			if (flagname.size()) {
+				if (flagname[0] == '$')
+					flagname.erase(0, 1);
+				if (flags.find(flagname) != flags.end()) {
+					std::stringstream snum;
+					snum << ii;
+					flagname += snum.str();
+				}
+				FlagMap[ii] = flagname;
+				if (!first)
+					o << ',' << endl;
+				else
+					first = false;
+				o << '\t' << flagname << " = 0x" << setw(4) << ii;
+			}
+			ii++;
+			std::getline(gflags, flagname, '\0');
+		};
+		o << endl << "};" << endl << endl;
+	} catch (const std::exception &err) {
+		cout << "error. failed to open " << _global_flags_file << ". exiting." << endl;
+		exit(1);
+	}
+}
+
 void UCData::load_funcs(ostream &o) {
 	if (options.game_u7() && Usecode_symbol_table::has_symbol_table(_file)) {
 		delete _symtbl;
@@ -299,7 +351,7 @@ void UCData::load_funcs(ostream &o) {
 		_symtbl = new Usecode_symbol_table();
 		_symtbl->read(_file);
 	}
-	
+
 	if (options.verbose) o << "Loading functions..." << endl;
 
 #ifdef LOAD_SPEED_TEST
@@ -344,7 +396,7 @@ void UCData::load_funcs(ostream &o) {
 
 	for (vector<UCFunc *>::iterator i = _funcs.begin(); i != _funcs.end(); ++i) {
 		int funcid = (*i)->_funcid;
-		Usecode_symbol::Symbol_kind kind; 
+		Usecode_symbol::Symbol_kind kind;
 		if ((*i)->_sym)
 			kind = (*i)->_sym->get_kind();
 		else if (funcid < 0x400)
@@ -356,7 +408,7 @@ void UCData::load_funcs(ostream &o) {
 		_funcmap.insert(FuncMapPair((*i)->_funcid, UCFuncSet(funcid, (*i)->_num_args,
 		                                                     (*i)->return_var, (*i)->aborts,
 		                                                     (*i)->_cls != 0, (*i)->funcname,
-		                                                     kind)));
+		                                                     kind, (*i)->_varmap)));
 	}
 	/*  for(map<unsigned int, UCFuncSet>::iterator i=_funcmap.begin(); i!=_funcmap.end(); ++i)
 	        o << i->first << "\t" << i->second.num_args << endl;*/
@@ -396,7 +448,7 @@ void UCData::analyse_classes() {
 
 void UCData::output_extern_header(ostream &o) {
 	if (!options.game_u7()) {
-		o << "This option only works for U7:BG, U7:FoV, U7:SI and U7:SS" << endl;
+		o << "This option only works for U7:BG, U7:FoV, U7:SI beta, U7:SI and U7:SS" << endl;
 		return;
 	}
 	load_funcs(o);

@@ -43,6 +43,7 @@ public:
 	virtual uint32 read4() = 0;
 	virtual uint32 read4high() = 0;
 	virtual void read(void *, size_t) = 0;
+	virtual void read(std::string&, size_t) = 0;
 
 	virtual void write1(uint32) = 0;
 	virtual void write2(uint16) = 0;
@@ -50,7 +51,7 @@ public:
 	virtual void write4(uint32) = 0;
 	virtual void write4high(uint32) = 0;
 	virtual void write(const void *, size_t) = 0;
-	virtual void write(std::string) = 0;
+	virtual void write(const std::string &) = 0;
 
 	virtual void seek(size_t) = 0;
 	virtual void skip(std::streamoff) = 0;
@@ -117,6 +118,11 @@ public:
 		in->read(reinterpret_cast<char *>(b), len);
 	};
 
+	virtual void read(std::string& s, size_t len) {
+		s.resize(len);
+		in->read(&s[0], len);
+	}
+
 	virtual void write1(uint32 val)      {
 		Write1(*out, static_cast<uint16>(val));
 	};
@@ -141,8 +147,8 @@ public:
 		out->write(reinterpret_cast<const char *>(b), len);
 	};
 
-	virtual void write(std::string s) {
-		out->write(s.c_str(), s.size());
+	virtual void write(const std::string &s) {
+		out->write(&s[0], s.size());
 	};
 
 	virtual void seek(size_t pos) {
@@ -266,6 +272,11 @@ public:
 		buf_ptr += len;
 	};
 
+	virtual void read(std::string& s, size_t len) {
+		s = std::string(reinterpret_cast<const char *>(buf_ptr), len);
+		buf_ptr += len;
+	}
+
 	virtual void write1(uint32 val) {
 		*buf_ptr++ = static_cast<uint8>(val & 0xff);
 	};
@@ -300,8 +311,8 @@ public:
 		buf_ptr += len;
 	};
 
-	virtual void write(std::string s) {
-		write(s.c_str(), s.size());
+	virtual void write(const std::string &s) {
+		write(&s[0], s.size());
 	};
 
 	virtual void seek(size_t pos) {

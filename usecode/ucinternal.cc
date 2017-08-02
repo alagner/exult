@@ -69,6 +69,7 @@
 #include "databuf.h"
 #include "usefuns.h"
 #include "opcodes.h"
+#include "ios_state.hpp"
 
 #if (defined(USE_EXULTSTUDIO) && defined(USECODE_DEBUGGER))
 #include "server.h"
@@ -109,7 +110,7 @@ using std::ostream;
 extern bool intrinsic_trace;
 extern int usecode_trace;
 
-#if 0 && USECODE_DEBUGGER
+#ifdef USECODE_DEBUGGER
 
 extern bool usecode_debugging;
 std::vector<int> intrinsic_breakpoints;
@@ -136,8 +137,16 @@ void Usecode_internal::stack_trace(ostream &out) {
 
 	std::deque<Stack_frame *>::iterator iter = call_stack.begin();
 
+	boost::io::ios_flags_saver flags(out);
+	boost::io::ios_fill_saver fill(out);
+	out << std::hex << std::setfill('0');
 	do {
-		out << *(*iter) << endl;
+		out << *(*iter);
+		std::map<Stack_frame *, uint8 *>::iterator it = except_stack.find(*iter);
+		if (it != except_stack.end()) {
+			out << ", active catch at 0x" << std::setw(8) << it->second;
+		}
+		out << endl;
 		if ((*iter)->call_depth == 0)
 			break;
 		++iter;
@@ -296,6 +305,13 @@ void Usecode_internal::previous_stack_frame() {
 	// restore stack pointer
 	sp = frame->save_sp;
 
+	// Get rid of exception handler for the current function (say, due to return
+	// in a try block).
+	std::map<Stack_frame *, uint8 *>::iterator it = except_stack.find(frame);
+	if (it != except_stack.end()) {
+		except_stack.erase(it);
+	}
+
 	if (frame->call_depth == 0) {
 		// this was the function called from 'the outside'
 		// push a marker (NULL) for the interpreter onto the call stack,
@@ -388,7 +404,7 @@ void Usecode_internal::return_from_procedure() {
 #endif
 }
 
-void Usecode_internal::abort_function() {
+void Usecode_internal::abort_function(Usecode_value &retval) {
 #ifdef DEBUG
 	int functionid = call_stack.front()->function->id;
 
@@ -397,9 +413,28 @@ void Usecode_internal::abort_function() {
 	     << endl;
 #endif
 
-	// clear the entire call stack up to the entry point
-	while (call_stack.front() != 0)
+	// clear the entire call stack up to either a catch or the entry point
+	while (call_stack.front() != 0) {
 		previous_stack_frame();
+		Stack_frame *frame = call_stack.front();
+		std::map<Stack_frame *, uint8 *>::iterator it = except_stack.find(frame);
+		if (it != except_stack.end()) {
+			uint8 *target = it->second;
+#ifdef DEBUG
+			int functionid = frame->function->id;
+
+			cout << "Abort caught in usecode " << hex << setw(4)
+				 << setfill('0') << functionid << " at location "
+				 << setw(8) << setfill('0') << target << dec << setfill(' ')
+				 << endl;
+#endif
+			except_stack.erase(it);
+			frame->ip = target;
+			// push the return value
+			push(retval);
+			break;
+		}
+	}
 }
 
 /*
@@ -1245,7 +1280,7 @@ Usecode_value Usecode_internal::add_party_items(
 		if (quantity < prev)    // Added to this NPC.
 			result.concat(party.get_elem(i));
 	}
-	if (GAME_BG)            // Black gate?  Just return result.
+	if (GAME_BG || GAME_SIB)    // Black gate or Beta SI?  Just return result.
 		return result;
 	int todo = quantity;        // SI:  Put remaining on the ground.
 	if (framenum == c_any_framenum)
@@ -1300,7 +1335,12 @@ Usecode_value Usecode_internal::add_cont_items(
 		quality = 0;
 
 	Game_object *obj = get_item(container);
-	if (obj) return Usecode_value(obj->add_quantity(quantity, shapenum, quality, framenum, false, temp));
+	if (obj) {
+		// This fixes teleport storm in SI Beta.
+		int numleft = obj->add_quantity(quantity, shapenum, quality, framenum, false, temp);
+		if (GAME_SIB) return Usecode_value(quantity - numleft);
+		else return Usecode_value(numleft);
+	}
 	return Usecode_value(0);
 }
 
@@ -1512,6 +1552,8 @@ static void Usecode_Trace(
     int num_parms,
     Usecode_value parms[12]
 ) {
+	boost::io::ios_flags_saver flags(cout);
+	boost::io::ios_fill_saver fill(cout);
 	cout << hex << "    [0x" << setfill('0') << setw(2)
 	     << intrinsic << "]: " << name << "(";
 	for (int i = 0; i < num_parms; i++) {
@@ -1520,7 +1562,6 @@ static void Usecode_Trace(
 			cout << ", ";
 	}
 	cout << ") = ";
-	cout << dec;
 }
 
 static  void    Usecode_TraceReturn(Usecode_value &v) {
@@ -1543,7 +1584,7 @@ Usecode_value no_ret;
 
 Usecode_value Usecode_internal::Execute_Intrinsic(UsecodeIntrinsicFn func, const char *name, int intrinsic, int num_parms, Usecode_value parms[12]) {
 #ifdef XWIN
-#if 0 && USECODE_DEBUGGER
+#ifdef USECODE_DEBUGGER
 	if (usecode_debugging) {
 		// Examine the list of intrinsics for function breakpoints.
 		if (std::find(intrinsic_breakpoints.begin(), intrinsic_breakpoints.end(), intrinsic) != intrinsic_breakpoints.end()) {
@@ -1592,6 +1633,13 @@ struct Usecode_internal::IntrinsicTableEntry
 #include "siintrinsics.h"
 };
 
+// Serpent Isle Beta Intrinsic Function Tablee
+// It's different to the Black Gate and Seroent Isle one.
+struct Usecode_internal::IntrinsicTableEntry
+		Usecode_internal::serpentbeta_table[] = {
+#include "sibetaintrinsics.h"
+};
+
 
 int max_bundled_intrinsics = 0x3ff; // Index of the last intrinsic in this table
 /*
@@ -1610,9 +1658,12 @@ Usecode_value Usecode_internal::call_intrinsic(
 	if (intrinsic <= max_bundled_intrinsics) {
 		struct Usecode_internal::IntrinsicTableEntry *table_entry;
 
-		if (Game::get_game_type() == SERPENT_ISLE)
-			table_entry = serpent_table + intrinsic;
-		else
+		if (Game::get_game_type() == SERPENT_ISLE) {
+			if (Game::is_si_beta())
+				table_entry = serpentbeta_table + intrinsic;
+			else
+				table_entry = serpent_table + intrinsic;
+		} else
 			table_entry = intrinsic_table + intrinsic;
 		UsecodeIntrinsicFn func = (*table_entry).func;
 		const char *name = (*table_entry).name;
@@ -1889,7 +1940,8 @@ int Usecode_internal::run() {
 				     << frame->function->id << dec << setfill(' ')
 				     << " ! Aborting." << endl;
 
-				abort_function();
+				Usecode_value msg("Out of bounds usecode execution!");
+				abort_function(msg);
 				frame_changed = true;
 				continue;
 			}
@@ -1924,7 +1976,7 @@ int Usecode_internal::run() {
 				cout << "On breakpoint" << endl;
 
 				// signal remote client that we hit a breakpoint
-				unsigned char c = (unsigned char)Exult_server::dbg_on_breakpoint;
+				unsigned char c = static_cast<unsigned char>(Exult_server::dbg_on_breakpoint);
 				if (client_socket >= 0)
 					Exult_server::Send_data(client_socket,
 					                        Exult_server::usecode_debugging,
@@ -1935,14 +1987,14 @@ int Usecode_internal::run() {
 #endif
 
 
-#if 0
+#ifdef USECODE_CONSOLE_DEBUGGER
 				// little console mode "debugger" (if you can call it that...)
 				bool done = false;
 				while (!done) {
 					char userinput;
 					cout << "s=step into, o=step over, f=finish, c=continue, "
 					     << "b=stacktrace: ";
-					cin >> userinput;
+					std::cin >> userinput;
 
 					if (userinput == 's') {
 						breakpoints.add(new AnywhereBreakpoint());
@@ -1971,7 +2023,7 @@ int Usecode_internal::run() {
 #endif
 
 
-				c = (unsigned char)Exult_server::dbg_continuing;
+				c = static_cast<unsigned char>(Exult_server::dbg_continuing);
 				if (client_socket >= 0)
 					Exult_server::Send_data(client_socket,
 					                        Exult_server::usecode_debugging,
@@ -2551,13 +2603,39 @@ int Usecode_internal::run() {
 			case UC_PUSHITEMREF:      // PUSH ITEMREF.
 				pushref(frame->caller_item);
 				break;
-			case UC_ABRT:      // ABRT.
+			case UC_ABRT: {    // ABRT.
 				show_pending_text();
 
-				abort_function();
+				Usecode_value msg("abort executed");
+				abort_function(msg);
 				frame_changed = true;
 				aborted = true;
 				break;
+			}
+			case UC_THROW: {    // THROW.
+				show_pending_text();
+
+				Usecode_value r = pop();
+				abort_function(r);
+				frame_changed = true;
+				aborted = true;
+				break;
+			}
+			case UC_TRYSTART:
+			case UC_TRYSTART32:
+				if (opcode < UC_EXTOPCODE)
+					offset = Read2s(frame->ip);
+				else
+					offset = Read4s(frame->ip);
+				except_stack[frame] = frame->ip + offset;
+				break;
+			case UC_TRYEND: {
+				std::map<Stack_frame *, uint8 *>::iterator it = except_stack.find(frame);
+				if (it != except_stack.end()) {
+					except_stack.erase(it);
+				}
+				break;
+			}
 			case UC_CONVERSELOC:      // end conversation
 				found_answer = true;
 				break;
@@ -3072,7 +3150,7 @@ bool Usecode_internal::in_usecode_for(
 void Usecode_internal::write(
 ) {
 	// Assume new games will have keyring.
-	if (Game::get_game_type() != BLACK_GATE)
+	if (Game::get_game_type() != BLACK_GATE && !Game::is_si_beta())
 		keyring->write();   // write keyring data
 
 	ofstream out;
@@ -3150,7 +3228,7 @@ void Usecode_internal::write(
 
 void Usecode_internal::read(
 ) {
-	if (Game::get_game_type() == SERPENT_ISLE)
+	if (Game::get_game_type() != BLACK_GATE && !Game::is_si_beta())
 		keyring->read();    // read keyring data
 
 
@@ -3271,7 +3349,7 @@ int Usecode_internal::get_callstack_size() const {
 }
 
 Stack_frame *Usecode_internal::get_stackframe(int i) {
-	if (i >= 0 && i < call_stack.size())
+	if (i >= 0 && static_cast<unsigned>(i) < call_stack.size())
 		return call_stack[i];
 	else
 		return 0;
@@ -3280,7 +3358,7 @@ Stack_frame *Usecode_internal::get_stackframe(int i) {
 
 // return current size of the stack
 int Usecode_internal::get_stack_size() const {
-	return (int)(sp - stack);
+	return static_cast<int>(sp - stack);
 }
 
 // get an(y) element from the stack. (depth == 0 is top element)

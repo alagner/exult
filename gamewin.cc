@@ -42,6 +42,7 @@
 #include "Flex.h"
 #include "Gump.h"
 #include "Gump_manager.h"
+#include "ShortcutBar_gump.h"
 #include "actions.h"
 #include "monsters.h"
 #include "animate.h"
@@ -86,6 +87,7 @@
 #include "monstinf.h"
 #include "usefuns.h"
 #include "audio/midi_drivers/XMidiFile.h"
+#include "array_size.h"
 
 #ifdef USE_EXULTSTUDIO
 #include "server.h"
@@ -181,9 +183,9 @@ void Background_noise::handle_event(
 	MyMidiPlayer *player = Audio::get_ptr()->get_midi();
 	// Lets allow this for Digital Muisc and MT32Emu only,
 	// for MT32/FakeMT32 conversion as well.
-	// if (player) { 
+	// if (player) {
 	//if (player && player->get_ogg_enabled()){
-	if (player && (player->get_ogg_enabled() || player->is_mt32())) {
+	if (player && (player->get_ogg_enabled() || player->is_mt32() || player->is_adlib())) {
 		delay = 1000;   //Quickly get back to this function check
 		//We've got OGG so play the background SFX tracks
 
@@ -546,7 +548,7 @@ Game_window::~Game_window(
 ) {
 	gump_man->close_all_gumps(true);
 	clear_world(false);         // Delete all objects, chunks.
-	for (size_t i = 0; i < sizeof(save_names) / sizeof(save_names[0]); i++)
+	for (size_t i = 0; i < array_size(save_names); i++)
 		delete [] save_names[i];
 	delete shape_man;
 	delete gump_man;
@@ -696,7 +698,7 @@ void Game_window::set_map(
 ) {
 	map = get_map(num);
 	if (!map)
-		abort("Map #d doesn't exist", num);
+		abort("Map %d doesn't exist", num);
 	Game_singletons::gmap = map;
 }
 
@@ -849,7 +851,7 @@ void Game_window::toggle_combat(
 		}
 	} else              // Ending combat.
 		Combat::resume();   // Make sure not still paused.
-	if(g_shortcutBar)
+	if (g_shortcutBar)
 		g_shortcutBar->set_changed();
 }
 
@@ -1059,6 +1061,8 @@ inline void Send_location(
 		Exult_server::Send_data(client_socket, Exult_server::view_pos,
 		                        &data[0], ptr - data);
 	}
+#else
+	ignore_unused_variable_warning(gwin);
 #endif
 }
 
@@ -1216,7 +1220,7 @@ Rectangle Game_window::get_shape_rect(Game_object *obj) {
 	Shape_frame *s = obj->get_shape();
 	if (!s) {
 		// This is probably fatal.
-#if DEBUG
+#ifdef DEBUG
 		std::cerr << "DEATH! get_shape() returned a NULL pointer: " << __FILE__ << ":" << __LINE__ << std::endl;
 		std::cerr << "Betcha it's a little doggie." << std::endl;
 #endif
@@ -1316,6 +1320,9 @@ void Game_window::init_actors(
 
 }
 
+// In gamemgr/modmgr.cc because it is also needed by ES.
+string get_game_identity(const char *savename, const string &title);
+
 /*
  *  Create initial 'gamedat' directory if needed
  *
@@ -1337,8 +1344,7 @@ bool Game_window::init_gamedat(bool create) {
 		// Editing, and no IDENTITY?
 		if (Game::is_editing() && !U7exists(IDENTITY)) {
 			U7open(out, IDENTITY);
-			std::string gametitlestr = Game::get_gametitle();
-			out << gametitlestr.c_str() << endl;
+			out << Game::get_gametitle() << endl;
 			out.close();
 		}
 
@@ -1362,12 +1368,10 @@ bool Game_window::init_gamedat(bool create) {
 			;
 		*ptr = 0;
 		cout << "Gamedat identity " << gamedat_identity << endl;
-		const char *static_identity = get_game_identity(INITGAME);
-		if (strcmp(static_identity, gamedat_identity)) {
-			delete [] static_identity;
+		string static_identity = get_game_identity(INITGAME, Game::get_gametitle());
+		if (static_identity != gamedat_identity) {
 			return false;
 		}
-		delete [] static_identity;
 		// scroll coords.
 	}
 	read_save_names();      // Read in saved-game names.
@@ -2185,33 +2189,33 @@ void Game_window::show_items(
 	        (npc->get_npc_num() > 0 || npc == main_actor)) {
 		char str[64];
 		std::string namestr = Get_object_name(obj);
-		snprintf(str, 64, "(%i) %s", npc->get_npc_num(),
+		snprintf(str, sizeof(str)-1, "(%i) %s", npc->get_npc_num(),
 		         namestr.c_str());
+		str[sizeof(str)-1] = 0;
 		effects->add_text(str, obj);
 	} else if (obj) {
 		// Show name.
 		std::string namestr = Get_object_name(obj);
-		const char *objname = namestr.c_str();
 		if (Game_window::get_instance()->failed_copy_protection() &&
 		        (npc == main_actor || !npc)) {  // Avatar and items
-			char oink[6];
-			snprintf(oink, 6, "Oink!");
-			objname = &oink[0];
+			namestr = "Oink!";
 		}
 		// Combat and an NPC?
 		if (in_combat() && Combat::mode != Combat::original && npc) {
 			char buf[128];
-			sprintf(buf, "%s (%d)", objname,
+			snprintf(buf, sizeof(buf)-1, " (%d)",
 			        npc->get_property(Actor::health));
-			objname = &buf[0];
+			buf[sizeof(buf)-1] = 0;
+			namestr += buf;
 		}
-		effects->add_text(objname, obj);
+		effects->add_text(namestr.c_str(), obj);
 	} else if (cheat.in_map_editor() && skip_lift > 0) {
 		// Show flat, but not when editing ter.
 		ShapeID id = get_flat(x, y);
-		char str[12];
-		snprintf(str, 12, "Flat %d:%d", id.get_shapenum(),
-		         id.get_framenum());
+		char str[13];
+		snprintf(str, sizeof(str)-1, "Flat %d:%d",
+		         id.get_shapenum(), id.get_framenum());
+		str[sizeof(str)-1] = 0;
 		effects->add_text(str, x, y);
 	}
 	// If it's an actor and we want to grab the actor, grab it.
@@ -2245,8 +2249,8 @@ void Game_window::show_items(
 		cout << "quality = " <<
 		     obj->get_quality() <<
 		     ", okay_to_take = " <<
-		     static_cast<int>(obj->get_flag(Obj_flags::okay_to_take)) <<
-		     ", flag0x1d = " << static_cast<int>(obj->get_flag(0x1d)) <<
+		     obj->get_flag(Obj_flags::okay_to_take) <<
+		     ", flag0x1d = " << obj->get_flag(0x1d) <<
 		     ", hp = " << obj->get_obj_hp() << ", weight = " << obj->get_weight()
 		     << ", volume = " << obj->get_volume()
 		     << endl;
@@ -2263,19 +2267,21 @@ void Game_window::show_items(
 
 #ifdef CHUNK_OBJ_DUMP
 		Map_chunk *chunk = map->get_chunk_safely(x / c_tiles_per_chunk, y / c_tiles_per_chunk);
-		Object_iterator it(chunk->get_objects());
-		Game_object *each;
-		cout << "Chunk Contents: " << endl;
-		while ((each = it.get_next()) != 0)
-			cout << "    " << each->get_name() << ":" << each->get_shapenum() << ":" << each->get_framenum() << endl;
+		if (chunk) {
+			Object_iterator it(chunk->get_objects());
+			Game_object *each;
+			cout << "Chunk Contents: " << endl;
+			while ((each = it.get_next()) != 0)
+				cout << "    " << each->get_name() << ":" << each->get_shapenum() << ":" << each->get_framenum() << endl;
+		}
 #endif
 		if (id.is_invalid())
 			return;
 	}
 	Shape_info &info = ShapeID::get_info(shnum);
-	cout << "TFA[1][0-6]= " << ((static_cast<int>(info.get_tfa(1))) & 127) << endl;
-	cout << "TFA[0][0-1]= " << ((static_cast<int>(info.get_tfa(0)) & 3)) << endl;
-	cout << "TFA[0][3-4]= " << ((static_cast<int>((info.get_tfa(0) >> 3)) & 3)) << endl;
+	cout << "TFA[1][0-6]= " << (info.get_tfa(1) & 127) << endl;
+	cout << "TFA[0][0-1]= " << (info.get_tfa(0) & 3) << endl;
+	cout << "TFA[0][3-4]= " << ((info.get_tfa(0) >> 3) & 3) << endl;
 	if (info.is_animated())
 		cout << "Object is ANIMATED" << endl;
 	if (info.has_translucency())
@@ -2408,7 +2414,7 @@ void Game_window::double_clicked(
 //++++++++++++TESTING
 	static int ncnt = 0;
 	cout << "Showing xform for ncnt = " << ncnt << endl;
-	std::size_t nxforms = sizeof(xforms) / sizeof(xforms[0]);
+	std::size_t nxforms = array_size(xforms);
 	pal->load(PALETTES_FLX, PATCH_PALETTES, 0, XFORMTBL, nxforms - 1 - ncnt);
 	pal->apply(false);
 	ncnt = (ncnt + 1) % nxforms;
@@ -2736,6 +2742,32 @@ void Game_window::call_guards(
 }
 
 /*
+ *  Makes guards stop trying to arrest the avatar. Based on what it seems to
+ *  do in SI, as well as what usecode seems to want to do.
+ */
+
+void Game_window::stop_arresting(
+) {
+	if (armageddon || in_dungeon)
+		return;
+	int gshape = get_guard_shape();
+	if (gshape < 0) { // No one to calm down.
+		return;
+	}
+
+	Actor_vector npcs;      // See if someone is nearby.
+	main_actor->find_nearby_actors(npcs, gshape, 20, 0x28);
+	for (Actor_vector::const_iterator it = npcs.begin(); it != npcs.end(); ++it) {
+		Actor *npc = *it;
+		if (!npc->is_in_party() && npc->get_schedule_type() == Schedule::arrest_avatar) {
+			npc->set_schedule_type(Schedule::wander);
+			// Prevent guard from becoming hostile.
+			npc->set_alignment(Actor::neutral);
+		}
+	}
+}
+
+/*
  *  Have nearby residents attack the Avatar.
  */
 
@@ -2862,7 +2894,7 @@ void Game_window::setup_game(
 	usecode->read();        // Read the usecode flags
 	CYCLE_RED_PLASMA();
 
-	if (Game::get_game_type() == BLACK_GATE) {
+	if (Game::get_game_type() == BLACK_GATE && !map_editing) {
 		string yn;      // Override from config. file.
 		// Skip intro. scene?
 		config->value("config/gameplay/skip_intro", yn, "no");
@@ -3171,7 +3203,7 @@ bool Game_window::is_hostile_nearby() {
 		if (!actor->is_dead() && actor->get_schedule() &&
 		        actor->get_effective_alignment() >= Actor::evil &&
 		        ((actor->get_schedule_type() == Schedule::combat &&
-		          dynamic_cast<Combat_schedule *>(actor->get_schedule())->has_started_battle()) ||
+		          static_cast<Combat_schedule *>(actor->get_schedule())->has_started_battle()) ||
 		         actor->get_schedule_type() == Schedule::arrest_avatar)) {
 			/* TODO- I think invisibles still trigger the
 			 * slowdown, verify this. */

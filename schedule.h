@@ -47,6 +47,7 @@ class Schedule : public Game_singletons, public Object_client {
 protected:
 	Actor *npc;         // Who this controls.
 	Tile_coord blocked;     // Tile where actor was blocked.
+	Tile_coord start_pos;	// When schedule created.
 	short prev_type;        // Actor's previous schedule.
 	int street_maintenance_failures;// # times failed to find path.
 	long street_maintenance_time;   // Time (msecs) when last tried.
@@ -60,6 +61,9 @@ public:
 	}
 	void set_blocked(Tile_coord const &b) {
 		blocked = b;
+	}
+	Tile_coord get_start_pos() const {
+		return start_pos;
 	}
 	enum Schedule_types {
 	    combat = 0, horiz_pace = 1,
@@ -119,6 +123,31 @@ public:
 		ignore_unused_variable_warning(obj);
 	}
 	bool try_proximity_usecode(int odds);
+};
+
+/*
+ *	A schedule that creates objects that need to be cleaned up after.
+ */
+class Schedule_with_objects : public Schedule {
+	vector<Game_object *> created;	// Items we created.
+protected:
+	Game_object *current_item;		// One we're using/walking to.
+	int items_in_hand; 	  	// # NPC's desk items.
+	void cleanup();				// Remove items we created.
+public:
+	Schedule_with_objects(Actor *n) : Schedule(n), current_item(0),
+									items_in_hand(0) {
+	}
+	~Schedule_with_objects();
+	virtual void notify_object_gone(Game_object *obj);
+	void add_object(Game_object *obj) {
+		created.push_back(obj);
+		add_client(obj);
+	}
+	// Find desk or waiter items.
+	virtual int find_items(Game_object_vector& vec, int dist) = 0;
+	bool walk_to_random_item(int dist = 16);
+	bool drop_item(Game_object *to_drop, Game_object *table);
 };
 
 /*
@@ -218,8 +247,9 @@ public:
  *  A schedule for eating at an inn.
  */
 class Eat_at_inn_schedule : public Schedule {
+	bool sitting_at_chair;
 public:
-	Eat_at_inn_schedule(Actor *n) : Schedule(n)
+	Eat_at_inn_schedule(Actor *n) : Schedule(n), sitting_at_chair(false)
 	{  }
 	virtual void now_what();    // Now what should NPC do?
 	virtual void ending(int newtype); // Switching to another schedule
@@ -352,8 +382,28 @@ public:
 	Tool_schedule(Actor *n, int shnum) : Loiter_schedule(n, 12),
 		toolshape(shnum), tool(0)
 	{  }
-	virtual void now_what();    // Now what should NPC do?
+	virtual void now_what() = 0;    // Now what should NPC do?
 	virtual void ending(int newtype);// Switching to another schedule.
+};
+
+/*
+ *  Farmer.
+ */
+class Farmer_schedule : public Tool_schedule {
+	Game_object *crop;
+	int grow_cnt;
+	enum {
+	    start,
+	    find_crop,
+	    attack_crop,
+	    crop_attacked,
+	    wander
+	} state;
+public:
+	Farmer_schedule(Actor *n) : Tool_schedule(n, 618),
+		crop(0), grow_cnt(0), state(start)
+	{  }
+	virtual void now_what();    // Now what should NPC do?
 };
 
 /*
@@ -434,26 +484,22 @@ public:
 /*
  *  Desk work - Just sit in front of desk.
  */
-class Desk_schedule : public Schedule {
+class Desk_schedule : public Schedule_with_objects {
 	Game_object *chair;     // What to sit in.
-	Game_object *desk, *table, *desk_item;
+	Game_object *desk, *table;
 	vector<Game_object *> tables;	// Other tables to work at.
-	int items_in_hand; 	  	// # NPC's desk items.
-	vector<Game_object *> created;	// Items we created.
 	enum {
 	    desk_setup,
 	    sit_at_desk,
-		get_desk_item,
-		picked_up_item,
-		work_at_table
+	    get_desk_item,
+	    picked_up_item,
+	    work_at_table
 	} state;
+	virtual int find_items(Game_object_vector& vec, int dist);
 	void find_tables(int shapenum);
 	bool walk_to_table();
-	bool walk_to_desk_item();
-	void cleanup();				// Remove items we created.
 public:
 	Desk_schedule(Actor *n);
-	~Desk_schedule();
 	virtual void now_what();    // Now what should NPC do?
 	virtual void ending(int newtype);// Switching to another schedule.
 	virtual void notify_object_gone(Game_object *obj);
@@ -511,24 +557,47 @@ public:
 /*
  *  Wait tables.
  */
-class Waiter_schedule : public Schedule {
+class Waiter_schedule : public Schedule_with_objects {
 	Tile_coord startpos;        // Starting position.
 	Actor *customer;        // Current customer.
 	Game_object *prep_table;    // Table we're working at.
+	bool cooking;
 	vector<Actor *> customers;  // List of customers.
+	vector<Actor *> customers_ordered;  // Taken orders from these.
 	vector<Game_object *> prep_tables; // Prep. tables.
+	vector<Game_object *> counters;    // Places to hang out.
 	vector<Game_object *> eating_tables; // Tables with chairs around them.
+	vector<Game_object *> unattended_plates;
 	enum {
 	    waiter_setup,
 	    get_customer,
 	    get_order,
+	    took_order,
+	    give_plate,
 	    prep_food,
-	    serve_food
+	    bring_food,
+	    serve_food,
+	    served_food,
+	    wait_at_counter,
+	    get_waiter_item,
+	    picked_up_item,
+	    walk_to_cleanup_food,
+	    cleanup_food
 	} state;
+	virtual int find_items(Game_object_vector& vec, int dist);
+	bool find_unattended_plate();
 	bool find_customer();
-	void find_tables(int shapenum);
+	void find_tables(int shapenum, int dist, bool is_prep = false);
+	void find_prep_tables();
 	bool walk_to_customer(int min_delay = 0);
-	bool walk_to_prep();
+	bool walk_to_work_spot(bool counter);
+	bool walk_to_prep() {
+		return walk_to_work_spot(false);
+	}
+	bool walk_to_counter() {
+		return walk_to_work_spot(true);
+	}
+	Game_object *create_customer_plate();
 	Game_object *find_serving_spot(Tile_coord &spot);
 public:
 	Waiter_schedule(Actor *n);

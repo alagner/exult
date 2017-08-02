@@ -61,9 +61,7 @@ const std::string c_empty_string; // Ob for exult_constants.h
 void usage();
 void open_usecode_file(UCData &uc, const Configuration &config);
 
-UCData uc;
 Configuration *config = new Configuration();
-
 using std::setw;
 using std::cerr;
 using std::cout;
@@ -77,6 +75,7 @@ int main(int argc, char **argv) {
 	cout.setf(ios::uppercase);
 
 	// get the parameters
+	UCData uc;
 	uc.parse_params(argc, argv);
 	if (uc.options.verbose) cout << "Parameters parsed..." << endl;
 
@@ -137,17 +136,11 @@ int main(int argc, char **argv) {
 
 void open_usecode_file(UCData &uc, const Configuration &config) {
 	GameManager *gamemanager = 0;
-	if (uc.options.noconf == false) gamemanager = new GameManager(true);
-	string bgpath;
-	if (uc.options.noconf == false) config.value("config/disk/game/blackgate/path", bgpath);
-	string fovpath;
-	if (uc.options.noconf == false) config.value("config/disk/game/forgeofvirtue/path", fovpath);
-	string sipath;
-	if (uc.options.noconf == false) config.value("config/disk/game/serpentisle/path", sipath);
-	string sspath;
-	if (uc.options.noconf == false) config.value("config/disk/game/silverseed/path", sspath);
 	string u8path;
-	if (uc.options.noconf == false) config.value("config/disk/game/pagan/path", u8path);
+	if (uc.options.noconf == false) {
+		gamemanager = new GameManager(true);
+		config.value("config/disk/game/pagan/path", u8path);
+	}
 
 	/* ok, to find the usecode file we search: (where $PATH=bgpath or sipath)
 	    $PATH/static/usecode
@@ -187,76 +180,65 @@ void open_usecode_file(UCData &uc, const Configuration &config) {
 	const string mucc_sic("SERPENT");
 	const string mucc_u8l("pagan");
 	const string mucc_u8c("PAGAN");
-
 	string path, ucspecial, mucc_l, mucc_c;
-	if (uc.options.game_bg()) {
-		if (uc.options.verbose) cout << "Configuring for bg." << endl;
+
+	if (uc.options.game_bg() || uc.options.game_fov()
+	    || uc.options.game_si() || uc.options.game_ss()
+	    || uc.options.game_sib()) {
+		string game;
 		if (gamemanager) {
-			if (gamemanager->is_bg_installed())
-				path = "<BLACKGATE_STATIC>";
-			else {
-				cout << "Failed to locate usecode file. Exiting." << endl;
+			ModManager *basegame = 0;
+			if (uc.options.game_bg()) {
+				basegame = gamemanager->get_bg();
+				game = "BG";
+				if (basegame && basegame->have_expansion()) {
+					cout << "Failed to locate BG usecode file but found FOV." << endl;
+					uc.options._game = uc.options.GAME_FOV;
+					game = "FOV";
+				}
+			} else if (uc.options.game_fov()) {
+				basegame = gamemanager->get_fov();
+				game = "FOV";
+			} else if (uc.options.game_si()) {
+				basegame = gamemanager->get_si();
+				game = "SI";
+				if (basegame->have_expansion()) {
+					cout << "Failed to locate SI usecode file but found SS." << endl;
+					uc.options._game = uc.options.GAME_SS;
+					game = "SS";
+				}
+			} else if (uc.options.game_ss()) {
+				basegame = gamemanager->get_ss();
+				game = "SS";
+			} else if (uc.options.game_sib()) {
+				basegame = gamemanager->get_sib();
+				game = "SI Beta";
+			}
+			if (!basegame) {
+				cout << "Failed to locate " << game << " usecode file. Exiting." << endl;
 				exit(1);
 			}
+			basegame->setup_game_paths();
+			path = "<STATIC>";
 			mucc_sl = "";
 			mucc_sc = "";
-		} else {
-			path      = bgpath;
+		} else if (uc.options.game_bg() || uc.options.game_fov()) {
 			mucc_l  = mucc_bgl;
 			mucc_c  = mucc_bgc;
-		}
-		ucspecial = "usecode.bg";
-	} else if (uc.options.game_fov()) {
-		if (uc.options.verbose) cout << "Configuring for fov." << endl;
-		if (gamemanager) {
-			if (gamemanager->is_fov_installed())
-				path = "<FORGEOFVIRTUE_STATIC>";
-			else {
-				cout << "Failed to locate usecode file. Exiting." << endl;
-				exit(1);
-			}
-			mucc_sl = "";
-			mucc_sc = "";
+			game = uc.options.game_bg() ? "BG" : "FOV";
 		} else {
-			path      = fovpath;
-			mucc_l  = mucc_bgl;
-			mucc_c  = mucc_bgc;
-		}
-		ucspecial = "usecode.bg";
-	} else if (uc.options.game_si()) {
-		if (uc.options.verbose) cout << "Configuring for si." << endl;
-		if (gamemanager) {
-			if (gamemanager->is_si_installed())
-				path = "<SERPENTISLE_STATIC>";
-			else {
-				cout << "Failed to locate usecode file. Exiting." << endl;
-				exit(1);
-			}
-			mucc_sl = "";
-			mucc_sc = "";
-		} else {
-			path      = sipath;
 			mucc_l  = mucc_sil;
 			mucc_c  = mucc_sic;
+			game = uc.options.game_si() ? "SI"
+			                            : uc.options.game_sib() ? "SI Beta"
+			                                                    : "SS";
 		}
-		ucspecial = "usecode.si";
-	} else if (uc.options.game_ss()) {
-		if (uc.options.verbose) cout << "Configuring for ss." << endl;
-		if (gamemanager) {
-			if (gamemanager->is_ss_installed())
-				path = "<SILVERSEED_STATIC>";
-			else {
-				cout << "Failed to locate usecode file. Exiting." << endl;
-				exit(1);
-			}
-			mucc_sl = "";
-			mucc_sc = "";
-		} else {
-			path      = sspath;
-			mucc_l  = mucc_sil;
-			mucc_c  = mucc_sic;
-		}
-		ucspecial = "usecode.si";
+		if (uc.options.game_bg() || uc.options.game_fov())
+			ucspecial = "usecode.bg";
+		else
+			ucspecial = "usecode.si";
+		if (uc.options.verbose)
+			cout << "Configuring for " << game << "." << endl;
 	} else if (uc.options.game_u8()) {
 		if (uc.options.verbose) cout << "Configuring for u8." << endl;
 		path      = u8path;
@@ -351,6 +333,7 @@ void usage() {
 	     << "\t\t-v \t- turns on verbose output mode" << endl
 	     << "\t\t-ofile\t- output to the specified file" << endl
 	     << "\t\t-ifile\t- load the usecode file specified by the filename" << endl
+	     << "\t\t-gfile\t- load global flag names from specified file" << endl
 	     << "\t\t-ro\t- output the raw opcodes in addition to the -f format" << endl
 	     << "\t\t-ac\t- output automatically generated comments" << endl
 	     << "\t\t-uc\t- output automatically generated 'useless' comments" << endl
@@ -362,6 +345,7 @@ void usage() {
 	     << "\t\t-fov\t- select the forge of virtue usecode file" << endl
 	     << "\t\t-si\t- select the serpent isle usecode file" << endl
 	     << "\t\t-ss\t- select the silver seed usecode file" << endl
+	     << "\t\t-sib\t- select the serpent isle beta usecode file" << endl
 	     << "\t\t-u8\t- select the ultima 8/pagan usecode file (experimental)" << endl
 	     << "\tOutput Format Flags (only one of these):" << endl
 	     << "\t\t-fl\t- output using brief \"list\" format" << endl
@@ -375,29 +359,3 @@ void usage() {
 	     ;
 	exit(1);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

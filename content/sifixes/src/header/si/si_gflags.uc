@@ -79,7 +79,7 @@ enum Monitor_townplot
 	CALLED_LUTHER_BRAGGART = 0xAF,
 	CALLED_LUTHER_REPULSIVE = 0xB0,
 	CALLED_LUTHER_BULLY = 0xB1,
-	LUTHER_CHALLENDE = 0x43,
+	LUTHER_CHALLENGED = 0x43,
 	DEFEATED_LUTHER = 0x41,
 
 	KNOWS_ABOUT_MONITOR_CLANS = 0x7F,
@@ -134,12 +134,19 @@ enum Monitor_traitor_subplot
 	TELL_SPEKTOR_ABOUT_TRAITOR = 0xB3,
 	KNOW_MARSTEN_IS_TRAITOR = 0x93,
 	KNOW_SPEKTOR_IS_TRAITOR = 0x94,
+	CAN_ACCUSE_MARSTEN = 0x36,
 	PROVED_MARSTEN_IS_TRAITOR = 0x38,
 	PROVED_SPEKTOR_IS_TRAITOR = 0x92,
 	SPEKTOR_ADMITS_HIS_CRIMES = 0xB4,
 	HAVE_SPEKTOR_KEY = 0xC1,
 	FOUND_CANTRAS_FATHER = 0xC6,
-	TOLD_HARNNA_FOUND_SCROLL = 0xC7
+	TOLD_HARNNA_FOUND_SCROLL = 0xC7,
+	// If 0xCC is set, changes or adds conversation with Harnna, Shazzana, Standarr, Templar, Brendann, Caladin,
+	// and also looks to add a bark about it to Brendann. No one outside of Monitor checks this,
+	// so the dialog in Fawn won’t change. Similar to the original Origin bug with Harnna and the Strange Coins,
+	// if Flag 204 is set you can repeatedly ask Standarr about Pomdirgun, the option does not get removed.
+	POMDIRGUN_IS_DEAD = 0xCC
+
 };
 
 enum Kidnapping_of_Cantra_subplot
@@ -157,7 +164,7 @@ enum Knights_Test_subplot
 	KNOW_TEST_SECRETS = 0x3B,
 	KNOWS_MARSTEN_GIVES_PERMISSION = 0x3C,
 	LORD_MARSTEN_GAVE_PERMISSION = 0x2F,
-	ASKED_SCHMED_ABOUT_TEST = 0x80,
+	ASKED_SHMED_ABOUT_TEST = 0x80,
 	BEGAN_KNIGHTS_TEST = 0x82,
 	SLAIN_WOLF = 0x4A,
 	GAVE_WOLF_TO_CELIA = 0x7D,
@@ -184,6 +191,22 @@ enum Free_Iolo_subplot
 	PAID_IOLO_FINE = 0xB9,
 	BRENDANN_GAVE_JAIL_KEY = 0xC4,
 	MARSTEN_GAVE_JAIL_KEY = 0xCD
+};
+
+enum Fawn_townplot
+{
+	ASKED_JENDON_DAEMON_ARTIFACTS = 0x156,
+	ASK_DELIN_ABOUT_BATLIN = 0x158,
+	ORACLE_SET_TO_INNOCENT = 0x16E,
+	ORACLE_SET_TO_CORRUPT = 0x16F, 
+	// Dual-use flag, set on the start of the audience cutscene, unset during the
+	// recess between trial sessions, and re-set again after the trial concludes:
+	AUDIENCE_WITH_YELINDA = 0x170,
+	FAWN_TRIAL_RECESS = 0x171,
+	FAWN_TRIAL_DONE = 0x172,
+	DUPRE_ACCUSED = 0x173,
+	IOLO_ACCUSED = 0x174,
+	SHAMINO_ACCUSED = 0x175
 };
 
 enum Sleeping_Bull_townplot
@@ -239,7 +262,16 @@ enum Spellbook_subplot
 enum Gorlab_swamp_townplot
 {
 	EDRIN_DREAMS_OF_SIRANUSH = 0xF3,
-	EDRIN_KNOWS_SIRANUSH_IS_REAL = 0x213
+	EDRIN_KNOWS_SIRANUSH_IS_REAL = 0x213,
+	DREAM_REALM_COMPLETE = 0x2DB
+};
+
+enum Skullcrusher_townplot
+{
+	// Yenani gave you a valuable secret, the password to open the gate to Skullcrusher.
+	KNOW_SKULLCRUSHER_PASSWORD = 613,
+	// New for SIfixes, set when the Skullcrusher automatons receive non-waiting schedules.
+	SKULLCRUSHER_AUTOMATONS = 614
 };
 
 // The quotes are from http://www.it-he.org
@@ -273,7 +305,7 @@ enum Find_Gwenno_subplot
 	ASKED_SPEKTOR_ABOUT_GWENNO = 0xA7,
 	FREED_GWENNOS_BODY = 0x25F,
 	TALKED_TO_GWANI_ABOUT_GWENNO = 0x262,
-	BAYANDA_GAVE_BUCKET = 0x264,
+	BAIYANDA_GAVE_BUCKET = 0x264,
 	// Iolo and Gwenno are alive, sane and talked to each other:
 	IOLO_GWENNO_REUNITED = 0x275
 };
@@ -350,7 +382,7 @@ enum Teleport_storm_objects
 	KNOWS_RING_OWNER = 0x291,
 	KNOWS_MOONSILK_OWNER = 0x28D,
 	KNOWS_BEAR_SKULL_ORIGIN = 0x29A,
-	HAS_CLUE_MONITOR_SIHELD = 0xAC,
+	HAS_CLUE_MONITOR_SHIELD = 0xAC,
 	KNOWS_MONITOR_SHIELD_ORIGIN = 0x29C,
 	KNOWS_ICEWINE_ORIGIN = 0x297,
 	KNOWS_URN_ORIGIN = 0x28E,
@@ -373,3 +405,45 @@ enum Teleport_storm_objects
 };
 
 const int TIME_FORMAT_24_HOURS = 0x400;
+
+enum Silver_Seed_flags
+{
+	WEARING_BELT_OF_STRENGTH = 0x2E8,
+	EXPERIENCE_FROM_BELT_OF_STRENGTH = 0x2E9,
+	USED_AMULET_OF_BALANCE = 0x2EE,
+	
+	ASKED_SUROK_TOO_MUCH = 0x2F4,
+	RED_ORB_PLACED = 0x2F5,
+	PURPLE_ORB_PLACED = 0x2F6,
+	BLUE_ORB_PLACED = 0x2F7,
+	YELLOW_ORB_PLACED = 0x2F8,
+	
+	KNOW_YUREL_LOVES_CHEESE = 0x2FA,
+	HAVE_AMULET_OF_BALANCE = 0x2FB,
+	HAVE_SILVER_SEED = 0x2FC,
+	KARNAX_WITNESSED_SEED_PLANTING = 0x2FD,
+	CASK_WAS_MOVED = 0x2FE,
+	ROPE_ON_WELL = 0x2FF,
+	HAVE_KEYRING = 0x300,
+	
+	WEARING_GAUNTLETS_OF_QUICKNESS = 0x302,
+	HOLDING_ERINONS_AXE = 0x303,
+	EXPERIENCE_FROM_ERINONS_AXE = 0x304,
+	WAS_ASKED_LIARS_RIDDLE = 0x305,
+	WAS_ASKED_EARRINGS_RIDDLE = 0x306,
+	WAS_ASKED_LONGTOOTH_RIDDLE = 0x307,
+	WAS_ASKED_CLOTH_RIDDLE = 0x308,
+	SOLVED_LIARS_RIDDLE = 0x309,
+	SOLVED_EARRINGS_RIDDLE = 0x30A,
+	SOLVED_LONGTOOTH_RIDDLE = 0x30B,
+	SOLVED_CLOTH_RIDDLE = 0x30C,
+	MET_ISSTANAR = 0x30D,							// He is a shape, not a real NPC.
+	HAVE_PURPLE_ORB = 0x30E,
+	MET_RIEYA = 0x30F,
+	MET_DRUSILLA = 0x310,
+	MET_SOLARIA = 0x311,
+	
+	PLANTED_SILVER_SEED = 0x313,
+	USED_IRON_MAIDEN = 0x314,
+	EXPERIENCE_FROM_RING_OF_REAGENTS = 0x315
+};

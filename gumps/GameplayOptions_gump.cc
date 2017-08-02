@@ -40,6 +40,7 @@
 #include "Text_button.h"
 #include "Enabled_button.h"
 #include "font.h"
+#include "array_size.h"
 
 using std::string;
 
@@ -52,7 +53,7 @@ static const char *canceltext = "CANCEL";
 
 static int framerates[] = { 2, 4, 6, 8, 10, -1 };
 // -1 is placeholder for custom framerate
-static const int num_default_rates = sizeof(framerates) / sizeof(framerates[0]) - 1;
+static const int num_default_rates = array_size(framerates) - 1;
 
 
 static string framestring(int fr) {
@@ -76,9 +77,9 @@ public:
 bool GameplayOptions_button::activate(int button) {
 	if (button != 1) return false;
 	if (text == canceltext) {
-		reinterpret_cast<GameplayOptions_gump *>(parent)->cancel();
+		static_cast<GameplayOptions_gump *>(parent)->cancel();
 	} else if (text == oktext) {
-		reinterpret_cast<GameplayOptions_gump *>(parent)->close();
+		static_cast<GameplayOptions_gump *>(parent)->close();
 	}
 	return true;
 }
@@ -92,7 +93,7 @@ public:
 
 	friend class GameplayOptions_gump;
 	virtual void toggle(int state) {
-		reinterpret_cast<GameplayOptions_gump *>(parent)->toggle(this, state);
+		static_cast<GameplayOptions_gump *>(parent)->toggle(this, state);
 	}
 };
 
@@ -105,7 +106,7 @@ public:
 
 	friend class GameplayOptions_gump;
 	virtual void toggle(int state) {
-		reinterpret_cast<GameplayOptions_gump *>(parent)->toggle(this, state);
+		static_cast<GameplayOptions_gump *>(parent)->toggle(this, state);
 	}
 };
 

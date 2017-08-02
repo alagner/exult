@@ -44,6 +44,14 @@
 #include "objs/objs.h"
 #endif
 
+#ifndef ATTR_PRINTF
+#ifdef __GNUC__
+#define ATTR_PRINTF(x,y) __attribute__((format(printf, (x), (y))))
+#else
+#define ATTR_PRINTF(x,y)
+#endif
+#endif
+
 class Actor;
 class Barge_object;
 class Map_chunk;
@@ -177,7 +185,7 @@ public:
 	static Game_window *get_instance() {
 		return game_window;
 	}
-	void abort(const char *msg, ...);   // Fatal error.
+	void abort(const char *msg, ...) ATTR_PRINTF(2,3);   // Fatal error.
 	/*
 	 *  Display:
 	 */
@@ -454,6 +462,7 @@ public:
 	void theft();           // Handle thievery.
 	static int get_guard_shape();
 	void call_guards(Actor *witness = 0, bool theft = false);
+	void stop_arresting();
 	void attack_avatar(int num_guards = 0, int align = 0);
 	bool is_hostile_nearby(); // detects if hostiles are nearby for movement speed
 	bool failed_copy_protection();
@@ -590,15 +599,12 @@ public:
 	// Save "gamedat".
 	void save_gamedat(const char *fname, const char *savename);
 	void save_gamedat(int num, const char *savename);
-	// Get IDENTITY string.
-	static const char *get_game_identity(const char *savename);
 	bool init_gamedat(bool create); // Initialize gamedat directory
 #ifdef HAVE_ZIP_SUPPORT
 private:
 	bool save_gamedat_zip(const char *fname, const char *savename);
 	bool Restore_level2(void *unzipfile, const char *dirname, int dirlen);
 	bool restore_gamedat_zip(const char *fname);
-	static const char *get_game_identity_zip(const char *savename);
 public:
 #endif
 	/*

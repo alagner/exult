@@ -103,7 +103,7 @@ const char *CheatScreen::flag_names[64] = {
 	"si_on_moving_barge",   // 0x11
 	"is_temporary",     // 0x12
 	0,          // 0x13
-	0,          // 0x14
+	"sailor",          // 0x14
 	"okay_to_land",     // 0x15
 	"dont_render/bg_dont_move", // 0x16
 	"in_dungeon",   // 0x17
@@ -111,17 +111,17 @@ const char *CheatScreen::flag_names[64] = {
 	0,          // 0x18
 	"confused",     // 0x19
 	"in_motion",        // 0x1A
-	"no_spell_casting",         // 0x1B
+	0,         // 0x1B
 	"met",          // 0x1C
 	"tournament",   // 0x1D
 	"si_zombie",    // 0x1E
-	0,          // 0x1F
+	"no_spell_casting",  // 0x1F
 
 	"polymorph",    // 0x20
 	"tattooed",     // 0x21
 	"read",         // 0x22
 	"petra",        // 0x23
-	0,          // 0x24
+	"si_lizard_king",  // 0x24
 	"freeze",       // 0x25
 	"naked",    // 0x26
 	0,          // 0x27
@@ -420,10 +420,11 @@ bool CheatScreen::SharedInput(char *input, int len, int &command, Cheat_Prompt &
 						input[curlen] = key.sym;
 						input[curlen + 1] = 0;
 					}
-				} else if (key.sym >= SDLK_KP0 && key.sym <= SDLK_KP9) {
+				} else if ((key.sym >= SDLK_KP1 && key.sym <= SDLK_KP9) || key.sym == SDLK_KP0) {
 					int curlen = std::strlen(input);
 					if (curlen < (len - 1)) {
-						input[curlen] = key.sym - SDLK_KP0 + '0';
+						int sym = key.sym == SDLK_KP0 ? '0' : (key.sym - SDLK_KP1 + '1');
+						input[curlen] = sym;
 						input[curlen + 1] = 0;
 					}
 				} else if (key.sym == SDLK_BACKSPACE) {
@@ -470,10 +471,11 @@ bool CheatScreen::SharedInput(char *input, int len, int &command, Cheat_Prompt &
 						input[curlen] = key.sym;
 						input[curlen + 1] = 0;
 					}
-				} else if (key.sym >= SDLK_KP0 && key.sym <= SDLK_KP9) {
+				} else if ((key.sym >= SDLK_KP1 && key.sym <= SDLK_KP9) || key.sym == SDLK_KP0) {
 					int curlen = std::strlen(input);
 					if (curlen < (len - 1)) {
-						input[curlen] = key.sym - SDLK_KP0 + '0';
+						int sym = key.sym == SDLK_KP0 ? '0' : (key.sym - SDLK_KP1 + '1');
+						input[curlen] = sym;
 						input[curlen + 1] = 0;
 					}
 				} else if (key.sym == SDLK_BACKSPACE) {
@@ -570,7 +572,7 @@ void CheatScreen::NormalDisplay() {
 
 	int longi = ((t.tx - 0x3A5) / 10);
 	int lati = ((t.ty - 0x46E) / 10);
-	snprintf(buf, 512, "Coords geo    %d %s %d %s", 
+	snprintf(buf, 512, "Coords geo    %d %s %d %s",
 		abs(lati), (lati < 0 ? "North" : "South"),
 		abs(longi), (longi < 0 ? "West" : "East"));
 	font->paint_text_fixedwidth(ibuf, buf, 0, 63, 8);
@@ -2598,7 +2600,7 @@ void CheatScreen::TeleportDisplay() {
 
 	int longi = ((t.tx - 0x3A5) / 10);
 	int lati = ((t.ty - 0x46E) / 10);
-	snprintf(buf, 512, "Coordinates   %d %s %d %s", 
+	snprintf(buf, 512, "Coordinates   %d %s %d %s",
 		abs(lati), (lati < 0 ? "North" : "South"),
 		abs(longi), (longi < 0 ? "West" : "East"));
 	font->paint_text_fixedwidth(ibuf, buf, 0, 63, 8);
@@ -2624,7 +2626,7 @@ void CheatScreen::TeleportMenu() {
 
 	// Dec
 	font->paint_text_fixedwidth(ibuf, "[D]ecimal Coordinates", 0, maxy - 81, 8);
-	
+
 	// NPC
 	font->paint_text_fixedwidth(ibuf, "[N]PC Number", 0, maxy - 72, 8);
 

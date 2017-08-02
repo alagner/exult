@@ -39,6 +39,7 @@
 #include "font.h"
 #include "gamewin.h"
 #include "Notebook_gump.h"
+#include "ShortcutBar_gump.h"
 using std::string;
 
 static const int rowy[] = { 4, 16, 28, 40, 52, 64, 76, 88, 100, 112, 124, 136, 148, 160, 172 };
@@ -57,9 +58,9 @@ public:
 		if (button != 1) return false;
 
 		if (text == canceltext) {
-			reinterpret_cast<MiscOptions_gump *>(parent)->cancel();
+			static_cast<MiscOptions_gump *>(parent)->cancel();
 		} else if (text == oktext) {
-			reinterpret_cast<MiscOptions_gump *>(parent)->close();
+			static_cast<MiscOptions_gump *>(parent)->close();
 		}
 		return true;
 	}
@@ -74,7 +75,7 @@ public:
 
 	friend class MiscOptions_gump;
 	virtual void toggle(int state) {
-		reinterpret_cast<MiscOptions_gump *>(parent)->toggle(this, state);
+		static_cast<MiscOptions_gump *>(parent)->toggle(this, state);
 	}
 };
 
@@ -87,7 +88,7 @@ public:
 
 	friend class MiscOptions_gump;
 	virtual void toggle(int state) {
-		reinterpret_cast<MiscOptions_gump *>(parent)->toggle(this, state);
+		static_cast<MiscOptions_gump *>(parent)->toggle(this, state);
 	}
 };
 

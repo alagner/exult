@@ -16,7 +16,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-// Includes Pentagram headers so we must include pent_include.h 
+// Includes Pentagram headers so we must include pent_include.h
 #include "pent_include.h"
 
 #ifndef UNDER_CE
@@ -42,6 +42,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "databuf.h"
 #include "convmusic.h"
 #include "utils.h"
+#include "array_size.h"
 
 #include "data/exult_flx.h"
 
@@ -89,7 +90,7 @@ using std::strcpy;
 // GM/GS Device: Convert notes using XMIDI Convert setting
 // MT32/FMSynth: Load correct Timbre Library from Game Data
 //
-// 
+//
 
 #define SEQ_NUM_MUSIC	0
 #define SEQ_NUM_SFX		1
@@ -113,12 +114,12 @@ void	MyMidiPlayer::start_music(int num,bool repeat,std::string flex)
 			return;
 		// Midi driver is playing?
 		if (midi_driver && midi_driver->isSequencePlaying(SEQ_NUM_MUSIC))
-			return;	
+			return;
 	}
 
 	// Work around Usecode bug where track 0 is played at Intro Earthquake
 	if(num == 0 && flex == MAINMUS && Game::get_game_type() == BLACK_GATE)
-		return;		
+		return;
 
 #ifdef DEBUG
 	cout << "Audio subsystem request: Music track # " << num << " in "<< flex << endl;
@@ -143,7 +144,7 @@ void	MyMidiPlayer::start_music(int num,bool repeat,std::string flex)
 		// No midi driver or bg track and we can't play it properly so don't fall through
 		if (!midi_driver || (!is_mt32() && Game_window::get_instance()->is_bg_track(num) && flex == MAINMUS)) return;
 	}
-	
+
 	// Handle FM Synth
 	if (midi_driver->isFMSynth())  {
 
@@ -167,20 +168,19 @@ void	MyMidiPlayer::start_music(int num,bool repeat,std::string flex)
 			prefix_len+=2;
 		else
 			prefix_len = 0;
-		
+
 	}
 	pflex += flex.c_str() + prefix_len;
 #ifdef MACOSX
 	string bflex("<BUNDLE>/");
 	bflex += flex.c_str() + prefix_len;
 #endif
-	mid_data = 
+	mid_data =
 #ifdef MACOSX
 		is_system_path_defined("<BUNDLE>") ?
-			new ExultDataSource(File_spec(flex), File_spec(bflex), 
-						File_spec(pflex), num):
+			new ExultDataSource(flex, bflex, pflex, num):
 #endif
-			new ExultDataSource(File_spec(flex), File_spec(pflex), num);
+			new ExultDataSource(flex, pflex, num);
 
 	// Extra safety.
 	if (!mid_data->getSize())
@@ -190,7 +190,7 @@ void	MyMidiPlayer::start_music(int num,bool repeat,std::string flex)
 		}
 
 	XMidiFile midfile(mid_data, setup_timbre_for_track(flex));
-	
+
 	delete mid_data;
 
 	// Now give the xmidi object to the midi device
@@ -234,7 +234,7 @@ void	MyMidiPlayer::start_music(std::string fname,int num,bool repeat)
 
 	// Handle FMSynth Stuff here
 	if (midi_driver->isFMSynth()) {
-		if (fname == ENDSCORE_XMI) 
+		if (fname == ENDSCORE_XMI)
 			num += 2;
 		else if (fname == R_SINTRO)
 			fname = A_SINTRO;
@@ -250,7 +250,7 @@ void	MyMidiPlayer::start_music(std::string fname,int num,bool repeat)
 	DataSource *mid_data = new StreamDataSource(&mid_file);
 
 	XMidiFile midfile(mid_data, setup_timbre_for_track(fname));
-	
+
 	delete mid_data;
 	mid_file.close();
 
@@ -304,7 +304,7 @@ int MyMidiPlayer::setup_timbre_for_track(std::string &str)
 		return XMIDIFILE_CONVERT_NOCONVERSION;
 
 	// A 'Fake' MT32 Device ie Device with MT32 patchmaps but does not support SYSEX
-	if (music_conversion == XMIDIFILE_CONVERT_GM_TO_MT32 || 
+	if (music_conversion == XMIDIFILE_CONVERT_GM_TO_MT32 ||
 			(music_conversion == XMIDIFILE_CONVERT_NOCONVERSION && midi_driver->noTimbreSupport()))
 	{
 		if (timbre_lib == TIMBRE_LIB_GM)
@@ -313,7 +313,7 @@ int MyMidiPlayer::setup_timbre_for_track(std::string &str)
 			return XMIDIFILE_CONVERT_NOCONVERSION;
 	}
 	// General Midi device
-	else if (timbre_lib == TIMBRE_LIB_GM) 
+	else if (timbre_lib == TIMBRE_LIB_GM)
 	{
 		return XMIDIFILE_CONVERT_NOCONVERSION;
 	}
@@ -335,7 +335,7 @@ void MyMidiPlayer::load_timbres()
 	if (midi_driver->noTimbreSupport()) return;
 
 	// Not in a mode that uses Timbres
-	if (!midi_driver->isFMSynth() && !midi_driver->isMT32() && 
+	if (!midi_driver->isFMSynth() && !midi_driver->isMT32() &&
 		music_conversion != XMIDIFILE_CONVERT_NOCONVERSION)
 		return;
 
@@ -363,7 +363,7 @@ void MyMidiPlayer::load_timbres()
 	// General Midi Mode - MT32
 	else if (timbre_lib == TIMBRE_LIB_GM) {
 		type = MidiDriver::TIMBRE_LIBRARY_XMIDI_FILE;
-		filename = EXULT_FLX;
+		filename = BUNDLE_CHECK(BUNDLE_EXULT_FLX, EXULT_FLX);
 		index = EXULT_FLX_MTGM_MID;
 	}
 	// U7VOICE
@@ -404,7 +404,7 @@ void MyMidiPlayer::load_timbres()
 	std::ifstream file;
 	DataSource *ds = 0;
 
-	if (index == -1) 
+	if (index == -1)
 	{
 		U7open(file, filename);
 		if (!file.good()) return;
@@ -428,7 +428,7 @@ void	MyMidiPlayer::stop_music()
 
 	current_track = -1;
 	repeating = false;
-	
+
 	if (ogg_enabled) ogg_stop_track();
 	if (midi_driver) midi_driver->finishSequence(SEQ_NUM_MUSIC);
 }
@@ -460,7 +460,7 @@ void MyMidiPlayer::set_music_conversion(int conv)
 	if (!ogg_enabled || !ogg_is_playing()) // if ogg is playing we don't care about drivers
 		stop_music();
 	music_conversion = conv;
-	
+
 	switch(music_conversion) {
 	case XMIDIFILE_CONVERT_MT32_TO_GS:
 		config->set("config/audio/midi/convert","gs",true);
@@ -488,7 +488,7 @@ void MyMidiPlayer::set_effects_conversion(int conv)
 	if (effects_conversion == conv) return;
 
 	effects_conversion = conv;
-	
+
 	switch(effects_conversion) {
 	case XMIDIFILE_CONVERT_NOCONVERSION:
 		config->set("config/audio/effects/convert","mt32",true);
@@ -585,7 +585,7 @@ bool MyMidiPlayer::init_device(bool timbre_load)
 		std::cout << "On play only" << std::endl;
 	else
 		std::cout << "Never" << std::endl;
-	
+
 	bool sfx = false;
 #ifdef ENABLE_MIDISFX
 	sfx = Audio::get_ptr()->are_effects_enabled();
@@ -615,7 +615,7 @@ bool MyMidiPlayer::init_device(bool timbre_load)
 		midi_driver = 0;
 		return false;
 	}
-	
+
 	// OGG Vorbis support
 	config->value("config/audio/midi/use_oggs",s,"no");
 	ogg_enabled = (s == "yes");
@@ -662,10 +662,15 @@ bool MyMidiPlayer::init_device(bool timbre_load)
 
 bool MyMidiPlayer::is_mt32()
 {
-	return midi_driver && (midi_driver->isMT32() || 
+	return midi_driver && (midi_driver->isMT32() ||
 		get_music_conversion() == XMIDIFILE_CONVERT_NOCONVERSION ||
 		get_music_conversion() == XMIDIFILE_CONVERT_GM_TO_MT32) &&
 		!midi_driver->isFMSynth();
+}
+
+bool MyMidiPlayer::is_adlib()
+{
+	return midi_driver && (midi_driver->isFMSynth());
 }
 
 MyMidiPlayer::MyMidiPlayer()	: repeating(false),current_track(-1),
@@ -718,9 +723,12 @@ void    MyMidiPlayer::start_sound_effect(int num)
 	// No driver
 	if (!midi_driver && !init_device(true)) return;
 
+	// midi_driver can be null here if ogg is enabled but midi failed
+	if (!midi_driver) return;
+
 	// Only support SFX on devices with 2 or more sequences
 	if (midi_driver->maxSequences() < 2) return;
-	
+
 	char		*buffer;
 	size_t		size;
 	DataSource  *mid_data;
@@ -740,20 +748,20 @@ void    MyMidiPlayer::start_sound_effect(int num)
 		delete [] buffer;
 		return;
 		}
-	
+
 	// Read the data into the XMIDI class
 	mid_data = new BufferDataSource(buffer, size);
 
 	// It's already GM, so dont convert
 	XMidiFile		midfile(mid_data, effects_conversion);
-	
+
 	delete mid_data;
 	delete [] buffer;
 
 	// Now give the xmidi object to the midi device
 	XMidiEventList *eventlist = midfile.GetEventList(0);
 	if (eventlist) midi_driver->startSequence(1,eventlist,false,255);
-	
+
 }
 
 void    MyMidiPlayer::stop_sound_effects()
@@ -773,7 +781,7 @@ bool MyMidiPlayer::ogg_play_track(std::string filename, int num, bool repeat)
 
 	if (filename == EXULT_FLX && num == EXULT_FLX_MEDITOWN_MID)
 		ogg_name = "exult.ogg";
-	else if (Game::get_game_type() == BLACK_GATE) 
+	else if (Game::get_game_type() == BLACK_GATE)
 		{
 		if(filename == INTROMUS || filename == INTROMUS_AD)
 			{
@@ -804,11 +812,11 @@ bool MyMidiPlayer::ogg_play_track(std::string filename, int num, bool repeat)
 			ogg_name = outputstr;
 			}
 		}
-	else if (Game::get_game_type() == SERPENT_ISLE) 
+	else if (Game::get_game_type() == SERPENT_ISLE)
 		{
 		if(filename == MAINSHP_FLX)
 			{
-			if (num == 28 || num == 27) 
+			if (num == 28 || num == 27)
 				ogg_name = "03bg.ogg";
 			else if(num == 30 || num == 29)
 				ogg_name = "endcr01.ogg";
@@ -821,7 +829,7 @@ bool MyMidiPlayer::ogg_play_track(std::string filename, int num, bool repeat)
 			ogg_name = "si13.ogg";
 		else if (filename == MAINMUS || filename == MAINMUS_AD)
 			{
-			if (static_cast<unsigned>(num) < sizeof(bgconvmusic)/sizeof(bgconvmusic[0]))
+			if (static_cast<unsigned>(num) < array_size(bgconvmusic))
 				ogg_name = bgconvmusic[num];
 			else
 				{

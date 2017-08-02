@@ -78,7 +78,7 @@ public:
 bool VideoOptions_button::activate(int button) {
 	if (button != 1) return false;
 	if (text == applytext) {
-		reinterpret_cast<VideoOptions_gump *>(parent)->save_settings();
+		static_cast<VideoOptions_gump *>(parent)->save_settings();
 	}
 	return true;
 }
@@ -91,7 +91,7 @@ public:
 
 	friend class VideoOptions_gump;
 	virtual void toggle(int state) {
-		reinterpret_cast<VideoOptions_gump *>(parent)->toggle(this, state);
+		static_cast<VideoOptions_gump *>(parent)->toggle(this, state);
 	}
 };
 void VideoOptions_gump::close() {
@@ -391,7 +391,7 @@ void VideoOptions_gump::save_settings() {
 	set_pos();
 	gwin->set_all_dirty();
 
-	if (!Countdown_gump::ask("Settings applied.\nKeep? %i...", 20)) {
+	if (!Countdown_gump::ask("Settings applied.\nKeep?", 20)) {
 		resx = o_resolution >> 16;
 		resy = o_resolution & 0xFFFF;
 		gw = game_resolutions[o_game_resolution] >> 16;

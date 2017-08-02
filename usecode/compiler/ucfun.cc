@@ -39,6 +39,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "ucexpr.h"         /* Needed only for Write2(). */
 #include "ucsymtbl.h"
 #include "basic_block.h"
+#include "array_size.h"
 
 using std::strlen;
 using std::memcpy;
@@ -200,7 +201,7 @@ Uc_var_symbol *Uc_function::add_alias(
 	if (cur_scope->is_dup(nm))
 		return 0;
 	// Create & assign slot.
-	Uc_var_symbol *var = dynamic_cast<Uc_var_symbol *>(v->get_sym());
+	Uc_var_symbol *var = static_cast<Uc_var_symbol *>(v->get_sym());
 	Uc_alias_symbol *alias = new Uc_struct_alias_symbol(nm, var, struc);
 	cur_scope->add(alias);
 	return alias;
@@ -220,7 +221,7 @@ Uc_var_symbol *Uc_function::add_alias(
 	if (cur_scope->is_dup(nm))
 		return 0;
 	// Create & assign slot.
-	Uc_var_symbol *var = dynamic_cast<Uc_var_symbol *>(v->get_sym());
+	Uc_var_symbol *var = static_cast<Uc_var_symbol *>(v->get_sym());
 	Uc_alias_symbol *alias = new Uc_class_alias_symbol(nm, var, c);
 	cur_scope->add(alias);
 	return alias;
@@ -394,7 +395,7 @@ int Uc_function::add_string(
 		memcpy(new_text_data, text_data, text_data_size);
 	// Append new.
 	memcpy(new_text_data + text_data_size, text, textlen);
-	delete text_data;
+	delete [] text_data;
 	text_data = new_text_data;
 	text_data_size += textlen;
 	text_map[text] = offset;    // Store map entry.
@@ -857,6 +858,10 @@ const char *si_intrinsic_table[] = {
 #include "../siintrinsics.h"
 };
 
+const char *sibeta_intrinsic_table[] = {
+#include "../sibetaintrinsics.h"
+};
+
 /*
  *  Add one of the intrinsic tables to the 'intrinsics' scope.
  */
@@ -867,20 +872,27 @@ void Uc_function::set_intrinsics(
 	const char **table;
 	if (intrinsic_type == unset) {
 		Uc_location::yywarning(
-		    "Use '#game \"[blackgate|serpentisle]\" to specify "
+		    "Use '#game \"[blackgate|serpentisle|serpentbeta]\" to specify "
 		    "intrinsics to use (default = blackgate).");
 		intrinsic_type = bg;
 	}
 	if (intrinsic_type == bg) {
 		table = bg_intrinsic_table;
-		cnt = sizeof(bg_intrinsic_table) / sizeof(bg_intrinsic_table[0]);
+		cnt = array_size(bg_intrinsic_table);
 		add_answer = 5;
 		remove_answer = 6;
 		push_answers = 7;
 		pop_answers = 8;
-	} else {
+	} else if (intrinsic_type == si) {
 		table = si_intrinsic_table;
-		cnt = sizeof(si_intrinsic_table) / sizeof(si_intrinsic_table[0]);
+		cnt = array_size(si_intrinsic_table);
+		add_answer = 0xc;
+		remove_answer = 0xd;
+		push_answers = 0xe;
+		pop_answers = 0xf;
+	} else {
+		table = sibeta_intrinsic_table;
+		cnt = array_size(sibeta_intrinsic_table);
 		add_answer = 0xc;
 		remove_answer = 0xd;
 		push_answers = 0xe;
@@ -891,9 +903,9 @@ void Uc_function::set_intrinsics(
 	intrinsics.resize(cnt);
 	for (int i = 0; i < cnt; i++) {
 		char *nm = const_cast<char *>(table[i]);
-		if (!memcmp(nm, "UI_get_usecode_fun", sizeof("UI_get_usecode_fun")))
+		if (!strncmp(nm, "UI_get_usecode_fun", sizeof("UI_get_usecode_fun")))
 			get_usecode_fun = i;
-		else if (!memcmp(nm, "UI_get_item_shape", sizeof("UI_get_item_shape")))
+		else if (!strncmp(nm, "UI_get_item_shape", sizeof("UI_get_item_shape")))
 			get_item_shape = i;
 		Uc_intrinsic_symbol *sym = new Uc_intrinsic_symbol(nm, i);
 		intrinsics[i] = sym;    // Store in indexed list.

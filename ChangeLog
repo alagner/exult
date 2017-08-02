@@ -1,3 +1,84 @@
+2017-03-01  jeff  <jeff@jeff-HP-Pavilion-dm4-Notebook-PC>
+
+	* Enhancing 'waiter' schedule:  Get correct 'prep' table, take several orders before serving, wait at counter after serving.
+
+2017-02-05  jeff  <jeff@jeff-HP-Pavilion-dm4-Notebook-PC>
+
+	* Don't allow an object to be placed on a 'solid' tile (ie, ethereal void in SI).
+
+2017-1-13	Dominik Reichardt <dominus@users.sourceforge.net>
+	* Implemented a "zoom" feature for map-editing. When in map-edit-mode, not  in
+	  fullscreen and using scaler point, Exult will switch between scalevalues 1-8 via 
+	  the +/- keys. It will not check whether the new game window is sane but also 
+	  won't save the scalevalue to exult.cfg.
+	  You can now change brightness (gamma values) with Alt +/- (used to be on +/-)
+
+2016-12-16	Dominik Reichardt <dominus@users.sourceforge.net>
+	* exult.cc: the file numbering of the --buildmap option is now in sync with the
+	  U7IFIXnn and U7IREGnn (thanks Wjp). This way you can quickly match them, for 
+	  example with the charts at http://exult.sourceforge.net/studio.php#ifix_iregs.
+
+2016-11-17	Dominik Reichardt <dominus@users.sourceforge.net>
+	* gamemgr/bggame.cc: added map_patches to BG to fix ugly shortcomings of Exult:
+	  - In Iolo's hut all sawdust is at z=2 which wreaks havoc with multiple 
+	    drawing order in the hut. The original handled this somehow. Perhaps by 
+		dropping this to the floor or using the z-buffer for something else in 
+		some cases.
+	  - Shape 874 should have some transparency in relation to the shapes it covers.
+	    It gets used for the towers in Despise and Shame to cover the stairway holes.
+		Incidently without the shape it looks much better than the original.
+	* gamemgr/sigame.cc: added map_patches to delete the music instruments in the 
+	  Skullcrusher mountain walls and the egg that spawns Spiders in the wall 
+	  (bug #1740). Spawning monsters in walls is another shortcoming of Exult.
+
+
+2016-07-16	Marzo Sette Torres Junior <marzojr@yahoo.com>
+	* Implemented feature #181 "Allow catching aborts".
+	  Syntax changes for UCC:
+	  Added "throw" command, an alias to "abort" which should be used whenever
+	  it makes sense. Both forms accept an optional parameter which is passed 
+	  to the handler; if no parameter is specified, Exult will send the text
+	  "abort executed" for compatibility with the original games. Examples:
+	  	abort;                   // same as abort "abort executed";
+	  	throw;                   // same as abort;
+	  	throw 1+1;
+	  	abort "Error message";
+	  	throw varname;           // varname must be a variable or function
+	  	throw UI_get_random(18);
+	  	abort [1, 2, 3];
+
+	  To handle (catch) an abort/throw, use the following syntax:
+	  	try {
+	  		// code that can generate an abort/throw
+	  	} catch (optvarname) {
+	  		// code that handles the abort/throw
+	  	}
+	  	// Code that gets executed afterwards
+
+	  optvarname is an optional variable name. If present, a variable will be
+	  created with this name which will receive the abort/throw's parameter;
+	  otherwise, that parameter will be discarded.
+
+	  Note: any class variables declared and constructed in the "try" block may
+	  leak if you don't delete it before the abort/throw happens. I have made no
+	  effort to handle this case.
+
+2016-06-27	Marzo Sette Torres Junior <marzojr@yahoo.com>
+	* Fixed bug #1958 "Studio: Selecting mod of a game type doesn't work if there
+	  are two same game".
+	* Fixed and applied Dominus' and Malignant Manor's patch to include exultmsg
+	  in exult.flx.
+
+2016-06-22	Dominik Reichardt <dominus@users.sourceforge.net>
+	* fnames.h, gumps/Notebook_gump.cc: an autonotes.txt file in a patch or mod 
+	  will override the default and if one is set in the config.
+
+2016-06-16	Malignant Manor <malignantmanor@users.sourceforge.net>
+	* usecode/ucxt/src/ucxt.cc: Refactor and add fallback when using -bg or -si
+
+2016-06-15	Malignant Manor <malignantmanor@users.sourceforge.net>
+	* schedule.cc: fix #1950 Paces stuck in Fawn and Rotolunia's Manor
+
 2016-06-13	Malignant Manor <malignantmanor@users.sourceforge.net>
 	* actors.cc: fix #1947 Frost Serpents Shout During MageBane Attack
 
@@ -5,6 +86,9 @@
 	* drag.cc: sound for "too heavy" message - patch by Alagner
 	* data/flx.in: there is some yet unidentified problem when mtgm.mid is not at 
 	  index #26.
+
+2016-05-10	Marzo Sette Torres Junior <marzojr@yahoo.com>
+	* readnpcs.cc: delete vs delete[] error.
 
 2016-05-13	Phillip T. George <github@me.phillipgeorge.com>
 	* Fixed #1925 SI: slain banes hide under carpet (body placement broken) 

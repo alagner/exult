@@ -30,9 +30,11 @@
 #endif
 #include <algorithm>
 #include <iomanip>
+#include <cctype>
 #include "files/utils.h"
 #include "usecode/ucsymtbl.h"
 #include "headers/ignore_unused_variable_warning.h"
+#include "headers/ios_state.hpp"
 
 #include "ops.h"
 
@@ -80,6 +82,7 @@ const string UCFunc::STATICNAME = "static var";
 const string UCFunc::NORETURN = "void";
 const string UCFunc::SHAPENUM = "shape#(";
 const string UCFunc::OBJECTNUM = "object#(";
+std::map<unsigned int, std::string> UCFunc::FlagMap;
 
 int UCFunc::num_global_statics = 0;
 
@@ -120,6 +123,8 @@ ostream &tab_indent(const unsigned int indent, ostream &o) {
 
 /* Outputs the short function data 'list' format, returns true upon success */
 bool UCFunc::output_list(ostream &o, unsigned int funcno, const UCOptions &options) {
+	boost::io::ios_flags_saver flags(o);
+	boost::io::ios_fill_saver fill(o);
 	o << "#" << std::setbase(10) << std::setw(4) << funcno << std::setbase(16) << ": "
 	  << (return_var ? '&' : ' ')
 	  << std::setw(4) << _funcid    << "H  "
@@ -153,9 +158,17 @@ bool UCFunc::output_ucs(ostream &o, const FuncMap &funcmap, const map<unsigned i
 	output_ucs_funcname(tab_indent(indent, o), funcmap, _funcid, _num_args, symtbl) << endl;
 	// start of func
 	tab_indent(indent++, o) << '{' << endl;
+	std::map<unsigned int, std::string>::iterator it;
 
-	for (unsigned int i = _num_args; i < _num_args + _num_locals; i++)
-		tab_indent(indent, o) << VARNAME << ' ' << VARPREFIX << std::setw(4) << i << ';' << endl;
+	for (unsigned int i = _num_args; i < _num_args + _num_locals; i++) {
+		tab_indent(indent, o) << VARNAME << ' ';
+		it = _varmap.find(i);
+		if (it != _varmap.end())
+			o << it->second;
+		else
+			o << VARPREFIX << std::setw(4) << i;
+		o << ';' << endl;
+	}
 
 	for (int i = 0; i < _num_statics; i++)
 		tab_indent(indent, o) << STATICNAME << ' ' << STATICPREFIX << std::setw(4) << i << ';' << endl;
@@ -202,9 +215,17 @@ ostream &UCFunc::output_ucs_funcname(ostream &o, const FuncMap &funcmap,
 		o << ")";
 	// output ObCurly braces
 	o << " (";
+	std::map<unsigned int, std::string>::iterator it;
 
-	for (unsigned int i = (fmp->second.class_fun ? 1 : 0); i < numargs; i++)
-		o << VARNAME << ' ' << VARPREFIX << std::setw(4) << i << ((i == numargs - 1) ? "" : ", ");
+	for (unsigned int i = (fmp->second.class_fun ? 1 : 0); i < numargs; i++) {
+		o << VARNAME << ' ';
+		it = fmp->second.varmap.find(numargs - i - 1);
+		if (it != fmp->second.varmap.end())
+			o << it->second;
+		else
+			o << VARPREFIX << std::setw(4) << i;
+		o << ((i == numargs - 1) ? "" : ", ");
+	}
 
 	o << ")";
 
@@ -432,7 +453,7 @@ vector<UCc *> UCFunc::parse_ucs_pass2a(vector<pair<UCc *, bool> >::reverse_itera
 #ifdef DEBUG_PARSE2a
 						cout << num_args << endl;
 #endif
-						
+
 					} else if (opcode_table_data[current->first->_id].flag_function_effect) {
 						assert(current->first->_params_parsed.size() >= 1);
 						FuncMap::const_iterator fmp = funcmap.find(current->first->_params_parsed[0]);
@@ -488,8 +509,11 @@ vector<UCc *> UCFunc::parse_ucs_pass2a(vector<pair<UCc *, bool> >::reverse_itera
 				}
 			}
 			if ((opsneeded != 0) && (current->second == false)) {
+				if (opcode_table_data[current->first->_id].flag_not_param) {
+					continue;
+				}
 				// if it's a 'push' opcode and we need items to return that we've popped off the stack...
-				if (opcode_table_data[current->first->_id].num_push != 0) {
+				else if (opcode_table_data[current->first->_id].num_push != 0) {
 #ifdef DEBUG_PARSE2
 					output_asm_opcode(tab_indent(4, cout << "P-"), *this, funcmap, opcode_table_data, intrinsics, *(current->first));
 #endif
@@ -1055,9 +1079,14 @@ string demunge_ocstring(UCFunc &ucf, const FuncMap &funcmap, const string &asmst
 					unsigned int paramval = params[t - 1];
 					if (paramval < ucf._num_args)
 						paramval = ucf._num_args - paramval - 1;
-					if (paramval || !ucf._cls)
-						str << UCFunc::VARPREFIX << std::setw(4) << paramval;
-					else
+					if (paramval || !ucf._cls) {
+						std::map<unsigned int, std::string>::iterator it;
+						it = ucf._varmap.find(params[t - 1]);
+						if (it != ucf._varmap.end())
+							str << it->second;
+						else
+							str << UCFunc::VARPREFIX << std::setw(4) << paramval;
+					} else
 						str << UCFunc::THISVAR;
 				}
 				break;
@@ -1074,6 +1103,23 @@ string demunge_ocstring(UCFunc &ucf, const FuncMap &funcmap, const string &asmst
 				Usecode_class_symbol *cls = symtbl->get_class(clsid);
 				assert(cls);
 				str << cls->get_name();
+				break;
+			}
+			case 'g': {
+				// Global flag reference
+				i++;
+				c = asmstr[i];
+				unsigned int t = charnum2uint(c);
+				assert(t != 0);
+				assert(params.size() >= t);
+				std::map<unsigned int, std::string>::iterator it;
+				it = UCFunc::FlagMap.find(params[t - 1]);
+				if (it != UCFunc::FlagMap.end()) {
+					str << it->second;
+				} else {
+					str << "0x";
+					print_number<16, 4>(c, str, params);
+				}
 				break;
 			}
 			default:
@@ -1272,8 +1318,29 @@ void readbin_U7UCFunc(
 				assert(ucop._params_parsed.size() >= 2);
 				ucf.debugging_offset = ucop._params_parsed[1];
 				// Don't override name from symbol table
-				if (!ucf._sym)
-					ucf.funcname = ucf._data.find(0x0000)->second;
+				if (!ucf._sym) {
+					std::stringstream str;
+					str << ucf._data.find(ucop._params_parsed[0])->second << "_";
+					str << std::setfill('0') << std::setbase(16);
+					str.setf(ios::uppercase);
+					str << std::setw(4) << ucf._funcid;
+					ucf.funcname = str.str();
+					std::map<unsigned int, std::string,
+					         std::less<unsigned int> >::iterator it;
+					it = ucf._data.find(ucf.debugging_offset);
+					for (unsigned int i = 0;
+					     i < ucf._num_args + ucf._num_locals && it != ucf._data.end();
+					     ++it, i++) {
+						std::string varname = it->second;
+						if (varname.size()) {
+							if (std::isdigit(varname[0]))
+								varname = UCFunc::VARPREFIX + varname;
+							else if (varname == "item")
+								varname = "_item";
+							ucf._varmap[i] = varname;
+						}
+					}
+				}
 			}
 
 			/* if we're am opcode accessing statics, make sure to update the

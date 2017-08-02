@@ -124,7 +124,7 @@ void Server_init(
 #ifndef WIN32
 	// Make sure it isn't there.
 	unlink(servename.c_str());
-#if HAVE_GETADDRINFOX
+#ifdef HAVE_GETADDRINFOX
 	// Don't use the old deprecated network API
 	int r;
 	struct addrinfo hints, *ai;
@@ -148,7 +148,7 @@ void Server_init(
 	if (listen_socket < 0)
 		perror("Failed to open map-editor socket");
 	else {
-#if HAVE_GETADDRINFOX
+#ifdef HAVE_GETADDRINFOX
 		if (bind(listen_socket, ai->ai_addr, ai->ai_addrlen) == -1 ||
 		        listen(listen_socket, 1) == -1)
 #else
@@ -169,7 +169,7 @@ void Server_init(
 			fcntl(listen_socket, F_SETFL,
 			      fcntl(listen_socket, F_GETFL) | O_NONBLOCK);
 		}
-#if HAVE_GETADDRINFOX
+#ifdef HAVE_GETADDRINFOX
 		freeaddrinfo(ai);
 #endif
 	}
@@ -388,7 +388,7 @@ static void Handle_client_message(
 		int qual = Read2s(ptr);
 		bool up = *ptr++ ? true : false;
 		bool okay = gwin->locate_shape(shnum, up, frnum, qual);
-		ptr = &data[4];     // Send back reply.
+		ptr = &data[6];     // Send back reply.
 		ptr++;          // Skip 'up' flag.
 		*ptr++ = okay ? 1 : 0;
 		Exult_server::Send_data(client_socket,

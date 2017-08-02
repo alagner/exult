@@ -39,6 +39,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "servemsg.h"
 #include "exult_constants.h"
 
+#ifndef ATTR_PRINTF
+#ifdef __GNUC__
+#define ATTR_PRINTF(x,y) __attribute__((format(printf, (x), (y))))
+#else
+#define ATTR_PRINTF(x,y)
+#endif
+#endif
+
 using std::string;
 using std::map;
 
@@ -134,7 +142,7 @@ private:
 	GtkNotebook     *mainnotebook;
 	// Which game type:
 	Exult_Game game_type;
-	bool expansion;
+	bool expansion, sibeta;
 	int curr_game;  // Which game is loaded
 	int curr_mod;   // Which mod is loaded, or -1 for none
 	std::string game_encoding;  // Character set for current game/mod.
@@ -366,6 +374,9 @@ public:
 	bool has_expansion() const {
 		return expansion;
 	}
+	 bool is_si_beta() {
+		return sibeta;
+	}
 	void set_shapeinfo_modified() {
 		shape_info_modified = true;
 	}
@@ -385,7 +396,7 @@ public:
 namespace EStudio {
 int Prompt(const char *msg, const char *choice0,
            const char *choice1 = 0, const char *choice2 = 0);
-void Alert(const char *msg, ...);
+void Alert(const char *msg, ...) ATTR_PRINTF(1, 2);
 GtkWidget *Add_menu_item(GtkWidget *menu, const char *label = 0,
                          GtkSignalFunc func = 0, gpointer func_data = 0, GSList *group = 0);
 GtkWidget *Create_arrow_button(GtkArrowType dir, GtkSignalFunc clicked,

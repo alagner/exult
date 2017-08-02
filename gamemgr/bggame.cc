@@ -47,6 +47,7 @@
 #include "miscinf.h"
 #include "gump_utils.h"
 #include "AudioMixer.h"
+#include "mappatch.h"
 
 #include "imagewin/imagewin.h"
 #include "imagewin/ArbScaler.h"
@@ -237,6 +238,90 @@ BG_Game::BG_Game()
 	fontManager.add_font("SMALL_BLACK_FONT", FONTS_VGA, PATCH_FONTS, 2, 0);
 	fontManager.add_font("TINY_BLACK_FONT", FONTS_VGA, PATCH_FONTS, 4, 0);
 	fontManager.add_font("GUARDIAN_FONT", MAINSHP_FLX, PATCH_MAINSHP, 3, -2);
+	Map_patch_collection *mp = gwin->get_map_patches();
+			// Sawdust in Iolo's hut is at lift 2, should be 0
+			// FIXME - the original had some way to deal with this
+			mp->add(new Map_patch_modify(Object_spec(
+			                                 Tile_coord(481, 599, 2), 224, 7, 0),
+			                             Object_spec(
+			                                 Tile_coord(480, 598, 0), 224, 7, 0)));
+			mp->add(new Map_patch_modify(Object_spec(
+			                                 Tile_coord(482, 601, 2), 224, 7, 0),
+			                             Object_spec(
+			                                 Tile_coord(481, 600, 0), 224, 7, 0)));
+			mp->add(new Map_patch_modify(Object_spec(
+			                                 Tile_coord(482, 600, 2), 224, 7, 0),
+			                             Object_spec(
+			                                 Tile_coord(481, 599, 0), 224, 7, 0)));
+			mp->add(new Map_patch_modify(Object_spec(
+			                                 Tile_coord(481, 602, 2), 224, 7, 0),
+			                             Object_spec(
+			                                 Tile_coord(480, 601, 0), 224, 7, 0)));
+			mp->add(new Map_patch_modify(Object_spec(
+			                                 Tile_coord(479, 599, 2), 224, 7, 0),
+			                             Object_spec(
+			                                 Tile_coord(478, 598, 0), 224, 7, 0)));
+			mp->add(new Map_patch_modify(Object_spec(
+			                                 Tile_coord(477, 597, 2), 224, 7, 0),
+			                             Object_spec(
+			                                 Tile_coord(476, 596, 0), 224, 7, 0)));
+			mp->add(new Map_patch_modify(Object_spec(
+			                                 Tile_coord(476, 597, 2), 224, 7, 0),
+			                             Object_spec(
+			                                 Tile_coord(475, 596, 0), 224, 7, 0)));
+			mp->add(new Map_patch_modify(Object_spec(
+			                                 Tile_coord(472, 595, 2), 224, 7, 0),
+			                             Object_spec(
+			                                 Tile_coord(471, 594, 0), 224, 7, 0)));
+			mp->add(new Map_patch_modify(Object_spec(
+			                                 Tile_coord(473, 598, 2), 224, 7, 0),
+			                             Object_spec(
+			                                 Tile_coord(472, 597, 0), 224, 7, 0)));
+			mp->add(new Map_patch_modify(Object_spec(
+			                                 Tile_coord(472, 600, 2), 224, 7, 0),
+			                             Object_spec(
+			                                 Tile_coord(471, 599, 0), 224, 7, 0)));
+			mp->add(new Map_patch_modify(Object_spec(
+			                                 Tile_coord(470, 597, 2), 224, 7, 0),
+			                             Object_spec(
+			                                 Tile_coord(469, 596, 0), 224, 7, 0)));
+			mp->add(new Map_patch_modify(Object_spec(
+			                                 Tile_coord(469, 597, 2), 224, 7, 0),
+			                             Object_spec(
+			                                 Tile_coord(468, 596, 0), 224, 7, 0)));
+			mp->add(new Map_patch_modify(Object_spec(
+			                                 Tile_coord(467, 599, 2), 224, 7, 0),
+			                             Object_spec(
+			                                 Tile_coord(466, 598, 0), 224, 7, 0)));
+			mp->add(new Map_patch_modify(Object_spec(
+			                                 Tile_coord(468, 600, 2), 224, 7, 0),
+			                             Object_spec(
+			                                 Tile_coord(467, 599, 0), 224, 7, 0)));
+			mp->add(new Map_patch_modify(Object_spec(
+			                                 Tile_coord(467, 601, 2), 224, 7, 0),
+			                             Object_spec(
+			                                 Tile_coord(466, 600, 0), 224, 7, 0)));
+			// pure BG shape 874 only has an empty frame. For FoV's Test of Truth
+			// it was changed for creating a dungeon chasm while obviously forgetting
+			// that frame #0 was used in two occassions:
+			//       hole in Despise's rebel base to invisible stairway
+			mp->add(new Map_patch_remove(Object_spec(
+		                                     Tile_coord(681, 1192, 5), 874, 0, 0)));
+			mp->add(new Map_patch_remove(Object_spec(
+		                                     Tile_coord(682, 1192, 5), 874, 0, 0)));
+			mp->add(new Map_patch_remove(Object_spec(
+		                                     Tile_coord(681, 1195, 5), 874, 0, 0)));
+			mp->add(new Map_patch_remove(Object_spec(
+		                                     Tile_coord(682, 1195, 5), 874, 0, 0)));
+			//       stairways hole in Shame's 2nd floor
+			mp->add(new Map_patch_remove(Object_spec(
+		                                     Tile_coord(807, 951, 5), 874, 0, 0)));
+			mp->add(new Map_patch_remove(Object_spec(
+		                                     Tile_coord(811, 951, 5), 874, 0, 0)));
+			mp->add(new Map_patch_remove(Object_spec(
+		                                     Tile_coord(807, 955, 5), 874, 0, 0)));
+			mp->add(new Map_patch_remove(Object_spec(
+		                                     Tile_coord(811, 955, 5), 874, 0, 0)));
 }
 
 BG_Game::~BG_Game() {
@@ -376,7 +461,7 @@ void BG_Game::scene_lord_british() {
 }
 
 
-#define BUTTERFLY_FRAME_DURATION    23 // - used to be 16.. too fast. 
+#define BUTTERFLY_FRAME_DURATION    23 // - used to be 16.. too fast.
 
 #define BUTTERFLY_SUB_FRAMES    3
 
@@ -924,7 +1009,7 @@ void BG_Game::scene_guardian() {
 				DRAW_SPEECH();
 			}
 
-			if (time >= text_times[text_index] && text_index < text_num_frames) {
+			if (text_index < text_num_frames && time >= text_times[text_index]) {
 				text_index++;
 				ADVANCE_TEXT_POINTER();
 				DRAW_SPEECH();
@@ -1451,6 +1536,9 @@ void BG_Game::end_game(bool success) {
 		if (midi) midi->set_timbre_lib(MyMidiPlayer::TIMBRE_LIB_ENDGAME);
 	}
 
+	bool speech = Audio::get_ptr()->is_audio_enabled() &&
+	              Audio::get_ptr()->is_speech_enabled();
+
 	// Fli Buffers
 	size_t  flisize;
 	char    *fli_b[3];
@@ -1511,7 +1599,7 @@ void BG_Game::end_game(bool success) {
 		}
 		if (do_break) break;
 
-		if (audio) speech1.play_it();
+		if (speech) speech1.play_it();
 		Font *endfont2 = fontManager.get_font("END2_FONT");
 		Font *endfont3 = fontManager.get_font("END3_FONT");
 		Font *normal = fontManager.get_font("NORMAL_FONT");
@@ -1523,7 +1611,8 @@ void BG_Game::end_game(bool success) {
 		disable_direct_gl_render();
 		for (i = 150; i < 204; i++) {
 			next = fli1.play(win, i, i, next);
-			endfont2->draw_text(ibuf, width, height, message);
+			if (!speech)
+				endfont2->draw_text(ibuf, width, height, message);
 			non_gl_blit();
 			if (wait_delay(0, 0, 1)) {
 				do_break = true;
@@ -1537,14 +1626,15 @@ void BG_Game::end_game(bool success) {
 
 		// Set speech
 
-		if (audio) speech2.play_it();
+		if (speech) speech2.play_it();
 
 		message = get_text_msg(damn_avatar);
 		width = (gwin->get_width() - endfont2->get_text_width(message)) / 2;
 
 		for (i = 0; i < 100; i++) {
 			next = fli2.play(win, i, i, next);
-			endfont2->draw_text(ibuf, width, height, message);
+			if (!speech)
+				endfont2->draw_text(ibuf, width, height, message);
 			non_gl_blit();
 			if (wait_delay(0, 0, 1)) {
 				do_break = true;
@@ -1649,7 +1739,7 @@ void BG_Game::end_game(bool success) {
 		}
 		if (do_break) break;
 
-		if (audio) speech3.play_it();
+		if (speech) speech3.play_it();
 
 		playfli::fliinfo finfo;
 		fli3.info(&finfo);
@@ -1661,8 +1751,10 @@ void BG_Game::end_game(bool success) {
 		for (i = next + 28000; i > next;) {
 			for (j = 0; j < static_cast<unsigned>(finfo.frames); j++) {
 				next = fli3.play(win, j, j, next);
-				for (m = 0; m < 6; m++)
-					endfont3->center_text(ibuf, centerx, starty + endfont3->get_text_height()*m, get_text_msg(txt_screen0 + m));
+				if (!speech) {
+					for (m = 0; m < 8; m++)
+						endfont3->center_text(ibuf, centerx, starty + endfont3->get_text_height()*m, get_text_msg(txt_screen0 + m));
+				}
 				non_gl_blit();
 				if (wait_delay(10, 0, 1)) {
 					do_break = true;
@@ -1701,10 +1793,12 @@ void BG_Game::end_game(bool success) {
 
 		// Paint backgound black
 		win->fill8(0);
+		
+		//Because of the German version we have to fit 11 lines of height 20 into a screen of 200 pixels
+		//so starty has needs to be a tiny bit in the negative but not -10
+		starty = (gwin->get_height() - normal->get_text_height() * 11) / 2.5;
 
-		starty = (gwin->get_height() - normal->get_text_height() * 10) / 2;
-
-		for (i = 0; i < 10; i++) {
+		for (i = 0; i < 11; i++) {
 			message = get_text_msg(txt_screen1 + i);
 			normal->draw_text(ibuf, centerx - normal->get_text_width(message) / 2, starty + normal->get_text_height()*i, message);
 		}
@@ -1722,20 +1816,16 @@ void BG_Game::end_game(bool success) {
 		// Fade out for 1 sec (50 cycles)
 		pal->fade(50, 0, 0);
 
-		if (wait_delay(10)) {
-			do_break = true;
-			break;
-		}
-		if (do_break) break;
+		if (wait_delay(10)) break;
 
 		// Text Screen 2
 
 		// Paint backgound black
 		win->fill8(0);
 
-		starty = (gwin->get_height() - normal->get_text_height() * 6) / 2;
+		starty = (gwin->get_height() - normal->get_text_height() * 9) / 2;
 
-		for (i = 0; i < 6; i++) {
+		for (i = 0; i < 9; i++) {
 			message = get_text_msg(txt_screen2 + i);
 			normal->draw_text(ibuf, centerx - normal->get_text_width(message) / 2, starty + normal->get_text_height()*i, message);
 		}
@@ -1760,9 +1850,9 @@ void BG_Game::end_game(bool success) {
 		// Paint backgound black
 		win->fill8(0);
 
-		starty = (gwin->get_height() - normal->get_text_height() * 6) / 2;
+		starty = (gwin->get_height() - normal->get_text_height() * 8) / 2;
 
-		for (i = 0; i < 6; i++) {
+		for (i = 0; i < 8; i++) {
 			message = get_text_msg(txt_screen3 + i);
 			normal->draw_text(ibuf, centerx - normal->get_text_width(message) / 2, starty + normal->get_text_height()*i, message);
 		}
@@ -1787,9 +1877,9 @@ void BG_Game::end_game(bool success) {
 		// Paint backgound black
 		win->fill8(0);
 
-		starty = (gwin->get_height() - normal->get_text_height() * 4) / 2;
+		starty = (gwin->get_height() - normal->get_text_height() * 5) / 2;
 
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < 5; i++) {
 			message = get_text_msg(txt_screen4 + i);
 			normal->draw_text(ibuf, centerx - normal->get_text_width(message) / 2, starty + normal->get_text_height()*i, message);
 		}
@@ -1806,6 +1896,41 @@ void BG_Game::end_game(bool success) {
 
 		// Fade out for 1 sec (50 cycles)
 		pal->fade(50, 0, 0);
+#if 0
+		//TODO: only when finishing a game and not when viewed from menu
+		if (when not in menu) {
+			if (wait_delay(10)) break;
+		
+			// Congratulations
+
+			// Paint backgound black
+			win->fill8(0);
+
+			starty = (gwin->get_height() - normal->get_text_height() * 6) / 2;
+
+			//TODO: figure out the time it took to complete the game
+			// in exultmsg.txt it is "%d year s ,  %d month s , &  %d day s"
+			// only showing years or months if there were any
+			for (i = 0; i < 9; i++) {
+				message = get_text_msg(congrats + i);
+				normal->draw_text(ibuf, centerx - normal->get_text_width(message) / 2, starty + normal->get_text_height()*i, message);
+			}
+
+			// Fade in for 1 sec (50 cycles)
+			pal->fade(50, 1, 0);
+
+			// Display text for 20 seonds (only 8 at the moment)
+			for (i = 0; i < 80; i++) if (wait_delay(100)) {
+					do_break = true;
+					break;
+				}
+			if (do_break) break;
+
+			// Fade out for 1 sec (50 cycles)
+			pal->fade(50, 0, 0);
+		}
+#endif
+
 	} while (0);
 
 	if (midi) {
@@ -2021,7 +2146,7 @@ bool BG_Game::new_game(Vga_file &shapes) {
 					break;
 				default: {
 #if SDL_VERSION_ATLEAST(2, 0, 0)
-					if ((isTextInput && selected == 0) || (!isTextInput && keysym_unicode > (int)'~' && selected == 0))
+					if ((isTextInput && selected == 0) || (!isTextInput && keysym_unicode > +'~' && selected == 0))
 #else
 					if (selected == 0) // on the text input field?
 #endif
