@@ -47,11 +47,12 @@ using std::endl;
  */
 
 Party_manager::Party_manager(
-) : party_count(0), dead_party_count(0), validcnt(0) {
-	// Clear party list.
-	std::memset(reinterpret_cast<char *>(&party[0]), 0, sizeof(party));
-	std::memset(reinterpret_cast<char *>(&dead_party[0]), 0, sizeof(dead_party));
-}
+) :
+	party_count(0),
+	dead_party_count(0),
+	validcnt(0),
+	party(EXULT_PARTY_MAX, 0),
+	dead_party(EXULT_DEAD_PARTY_MAX, 0) { }
 
 /*
  *  Add NPC to party.
@@ -62,7 +63,7 @@ Party_manager::Party_manager(
 bool Party_manager::add_to_party(
     Actor *npc          // (Should not be the Avatar.)
 ) {
-	const int maxparty = array_size(party);
+	const int maxparty = party.size();
 	if (!npc || party_count == maxparty || npc->is_in_party())
 		return false;
 	remove_from_dead_party(npc);    // Just to be sure.
@@ -123,11 +124,11 @@ bool Party_manager::remove_from_party(
 int Party_manager::in_dead_party(
     Actor *npc
 ) {
+	auto start = dead_party.begin();
+	auto end = start  + dead_party_count;
 	int num = npc->get_npc_num();
-	for (int i = 0; i < dead_party_count; i++)
-		if (dead_party[i] == num)
-			return i;
-	return -1;
+	auto it_pos = std::find(start, end, num);
+	return it_pos == end ? -1 : std::distance(start, it_pos);
 }
 
 /*
@@ -139,7 +140,7 @@ int Party_manager::in_dead_party(
 bool Party_manager::add_to_dead_party(
     Actor *npc          // (Should not be the Avatar.)
 ) {
-	const int maxparty = array_size(dead_party);
+	const int maxparty = dead_party.size();
 	if (!npc || dead_party_count == maxparty || in_dead_party(npc) >= 0)
 		return false;
 	dead_party[dead_party_count++] = npc->get_npc_num();
@@ -157,14 +158,16 @@ bool Party_manager::remove_from_dead_party(
 ) {
 	if (!npc)
 		return false;
-	int id = in_dead_party(npc);    // Get index.
-	if (id == -1)           // Not in list?
+	auto end = dead_party.begin()+dead_party_count;
+	auto to_zero = std::remove(
+			dead_party.begin(),
+			end,
+			npc->get_npc_num());
+	if (to_zero == end)
 		return false;
-	// Shift the rest down.
-	for (int i = id + 1; i < dead_party_count; i++)
-		dead_party[i - 1] = dead_party[i];
+	//we assume it's always one npc...
 	dead_party_count--;
-	dead_party[dead_party_count] = 0;
+	*to_zero = 0;
 	return true;
 }
 
@@ -213,7 +216,7 @@ void Party_manager::link_party(
 		int npc_num = npc->get_npc_num();
 		if (npc->is_dead()) { // Put dead in special list.
 			npc->set_party_id(-1);
-			if (static_cast<unsigned int>(dead_party_count) >= array_size(dead_party))
+			if (static_cast<unsigned int>(dead_party_count) >= dead_party.size())
 				continue;
 			dead_party[dead_party_count++] = npc_num;
 			continue;

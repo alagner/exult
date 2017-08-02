@@ -25,18 +25,21 @@
 
 #include "singles.h"
 #include "tiles.h"
-
+#include <vector>
 class Actor;
 
 #define EXULT_PARTY_MAX 8
+#define EXULT_DEAD_PARTY_MAX 16
+
 
 /*
  *  Manage the party.
  */
 class Party_manager : public Game_singletons {
-	int party[EXULT_PARTY_MAX]; // NPC #'s of party members.
+	std::vector<int> party{EXULT_PARTY_MAX};// NPC #'s of party members.
+	//int party[EXULT_PARTY_MAX];
 	int party_count;        // # of NPC's in party.
-	int dead_party[16];     // NPC #'s of dead party members.
+	std::vector<int> dead_party;     // NPC #'s of dead party members.
 	int dead_party_count;
 	Actor *valid[EXULT_PARTY_MAX];  // NPC's able to walk with Avatar.
 	int validcnt;
