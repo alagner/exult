@@ -542,6 +542,9 @@ XMidiFile::XMidiFile(IDataSource *source, int pconvert) : num_tracks(0),
 	if (pconvert >= XMIDIFILE_HINT_U7VOICE_MT_FILE) InsertDisplayEvents();
 }
 
+XMidiFile::XMidiFile(IDataSource &source, int pconvert) :
+		XMidiFile::XMidiFile(std::addressof(source), pconvert) {}
+
 XMidiFile::~XMidiFile()
 {
 	if (events)

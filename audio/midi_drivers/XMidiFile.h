@@ -73,7 +73,9 @@ private:
 #endif
 
 public:
+	XMidiFile() =  delete;
 	XMidiFile(IDataSource *source, int pconvert);
+	XMidiFile(IDataSource &source, int pconvert);
 	~XMidiFile();
 
 	int number_of_tracks() { return num_tracks; }
@@ -91,7 +93,6 @@ public:
 	// int apply_patch (int track, DataSource *source);
 
 private:
-	XMidiFile(); // No default constructor
     
     struct first_state {			// Status,	Data[0]
 		XMidiEvent		*patch[16];	// 0xC

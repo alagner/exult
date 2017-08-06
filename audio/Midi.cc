@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <unistd.h>
 #include <fstream>
 #include <climits>
+#include <memory>
 
 #include "fnames.h"
 #include "exult.h"
@@ -43,6 +44,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "convmusic.h"
 #include "utils.h"
 #include "array_size.h"
+
 
 #include "data/exult_flx.h"
 
@@ -156,7 +158,7 @@ void	MyMidiPlayer::start_music(int num,bool repeat,std::string flex)
 		else if (flex == MAINSHP_FLX) num--;
 	}
 
-	DataSource  *mid_data = 0;
+
 
 	// Try in patch dir first.
 	string pflex("<PATCH>/");
@@ -175,28 +177,28 @@ void	MyMidiPlayer::start_music(int num,bool repeat,std::string flex)
 	string bflex("<BUNDLE>/");
 	bflex += flex.c_str() + prefix_len;
 #endif
-	mid_data =
+	std::unique_ptr <DataSource> mid_data {
 #ifdef MACOSX
 		is_system_path_defined("<BUNDLE>") ?
-			new ExultDataSource(flex, bflex, pflex, num):
+			new (std::nothrow) ExultDataSource(flex, bflex, pflex, num):
 #endif
-			new ExultDataSource(flex, pflex, num);
+			new (std::nothrow) ExultDataSource(flex, pflex, num)
+	};
 
 	// Extra safety.
-	if (!mid_data->getSize())
-		{
-		delete mid_data;
-		return;
-		}
 
-	XMidiFile midfile(mid_data, setup_timbre_for_track(flex));
+	if (mid_data && mid_data->getSize())
+	{
+		XMidiFile midfile(*mid_data, setup_timbre_for_track(flex));
+		XMidiEventList *eventlist = midfile.GetEventList(0);
+		// Now give the xmidi object to the midi device
+		if (eventlist)  midi_driver->startSequence(SEQ_NUM_MUSIC, eventlist, repeat, 255);
+	}
 
-	delete mid_data;
 
-	// Now give the xmidi object to the midi device
 
-	XMidiEventList *eventlist = midfile.GetEventList(0);
-	if (eventlist)  midi_driver->startSequence(SEQ_NUM_MUSIC, eventlist, repeat, 255);
+
+
 }
 
 void	MyMidiPlayer::start_music(std::string fname,int num,bool repeat)
@@ -207,7 +209,7 @@ void	MyMidiPlayer::start_music(std::string fname,int num,bool repeat)
 
 	stop_music();
 
-	// -1 and 255 are stop tracks
+	// -1 and 255 are stop tracks:
 	if (num == -1 || num == 255) return;
 
 	current_track = -1;
