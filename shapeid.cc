@@ -55,21 +55,21 @@ using std::min;
 using std::max;
 #endif
 
-Shape_manager *Shape_manager::instance = 0;
+Shape_manager *Shape_manager::instance = nullptr;
 
 /*
  *  Singletons:
  */
-Game_window *Game_singletons::gwin = 0;
-Game_map *Game_singletons::gmap = 0;
-Effects_manager *Game_singletons::eman = 0;
-Shape_manager *Game_singletons::sman = 0;
-Usecode_machine *Game_singletons::ucmachine = 0;
-Game_clock *Game_singletons::gclock = 0;
-Palette *Game_singletons::pal = 0;
-Gump_manager *Game_singletons::gumpman = 0;
-Party_manager *Game_singletons::partyman = 0;
-class FileSystem *Game_singletons::pent_filesys = 0;
+Game_window *Game_singletons::gwin = nullptr;
+Game_map *Game_singletons::gmap = nullptr;
+Effects_manager *Game_singletons::eman = nullptr;
+Shape_manager *Game_singletons::sman = nullptr;
+Usecode_machine *Game_singletons::ucmachine = nullptr;
+Game_clock *Game_singletons::gclock = nullptr;
+Palette *Game_singletons::pal = nullptr;
+Gump_manager *Game_singletons::gumpman = nullptr;
+Party_manager *Game_singletons::partyman = nullptr;
+class FileSystem *Game_singletons::pent_filesys = nullptr;
 
 void Game_singletons::init(
     Game_window *g
@@ -310,7 +310,7 @@ void Shape_manager::load(
 		int pn = pxf ? pxf->number_of_objects() : 0;
 		int nobjs = min(max(sn, pn), nblends);  // Limit by blends.
 		for (int i = 0; i < nobjs; i++) {
-			uint8 *data = 0;
+			uint8 *data = nullptr;
 			std::size_t len = 0;
 			if (pxf)
 				data = reinterpret_cast<uint8 *>(pxf->retrieve(i, len));
