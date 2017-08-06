@@ -41,7 +41,7 @@ class Party_manager : public Game_singletons {
 	int party_count;        // # of NPC's in party.
 	std::vector<int> dead_party;     // NPC #'s of dead party members.
 	int dead_party_count;
-	Actor *valid[EXULT_PARTY_MAX];  // NPC's able to walk with Avatar.
+	std::vector<Actor *> valid;  // NPC's able to walk with Avatar.
 	int validcnt;
 	// Formation-walking:
 	void move_followers(Actor *npc, int vindex, int dir);

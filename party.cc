@@ -52,7 +52,8 @@ Party_manager::Party_manager(
 	dead_party_count(0),
 	validcnt(0),
 	party(EXULT_PARTY_MAX, 0),
-	dead_party(EXULT_DEAD_PARTY_MAX, 0) { }
+	dead_party(EXULT_DEAD_PARTY_MAX, 0),
+	valid(EXULT_PARTY_MAX) { }
 
 /*
  *  Add NPC to party.
@@ -98,16 +99,23 @@ bool Party_manager::remove_from_party(
 		cout << "Party mismatch!!" << endl;
 		return false;
 	}
-	// Shift the rest down.
+
 	for (int i = id + 1; i < party_count; i++) {
 		Actor *npc2 = gwin->get_npc(party[i]);
+		//think how to do this  clean...
 		if (npc2)
 			npc2->set_party_id(i - 1);
-		party[i - 1] = party[i];
 	}
+	// Shift the rest down.
+	auto to_zero = std::remove(
+			party.begin(),
+			party.end(),
+			npc_num);
+
+
 	npc->clear_flag(Obj_flags::in_party);
 	party_count--;
-	party[party_count] = 0;
+	*to_zero = 0;
 	npc->set_party_id(-1);
 	if(g_shortcutBar)
 		g_shortcutBar->set_changed();
