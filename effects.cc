@@ -206,10 +206,16 @@ void Effects_manager::remove_all_effects(
 ) {
 	if (!effects && !texts)
 		return;
-	while (effects)
+	while (effects) {
+		Special_effect *next = effects->next;
 		remove_effect(effects);
-	while (texts)
+		effects = next;
+	}
+	while (texts) {
+		Text_effect *next = texts->next;
 		remove_text_effect(texts);
+		texts = next;
+	}
 	if (repaint)
 		gwin->paint();      // Just paint whole screen.
 }
@@ -220,8 +226,11 @@ void Effects_manager::remove_all_effects(
 
 void Effects_manager::remove_text_effects(
 ) {
-	while (texts)
+	while (texts) {
+		Text_effect *next = texts->next;
 		remove_text_effect(texts);
+		texts = next;
+	}
 	gwin->set_all_dirty();
 }
 
@@ -241,7 +250,7 @@ void Effects_manager::remove_weather_effects(
 		Special_effect *next = each->next;
 		// See if we're far enough away.
 		if (each->is_weather() && (!dist ||
-		                           reinterpret_cast<Weather_effect *>(each)->out_of_range(apos, dist)))
+		                           static_cast<Weather_effect *>(each)->out_of_range(apos, dist)))
 			remove_effect(each);
 		each = next;
 	}
@@ -276,7 +285,7 @@ int Effects_manager::get_weather(
 	while (each) {
 		Special_effect *next = each->next;
 		if (each->is_weather()) {
-			Weather_effect *weather = reinterpret_cast<Weather_effect *>(each);
+			Weather_effect *weather = static_cast<Weather_effect *>(each);
 			if (weather->get_num() >= 0)
 				return weather->get_num();
 		}
@@ -1140,20 +1149,6 @@ int Weather_effect::out_of_range(
 	return eggloc.distance(avpos) >= dist;
 }
 
-Fog_effect::~Fog_effect() {
-	gclock->set_fog(false);
-}
-
-void Fog_effect::handle_event(unsigned long curtime, uintptr udata) {
-	ignore_unused_variable_warning(curtime);
-	if (start) {
-		start = false;
-		// Nothing more to do but end.
-		gwin->get_tqueue()->add(stop_time, this, udata);
-		gclock->set_fog(true);
-	} else              // Must be time to stop.
-		eman->remove_effect(this);
-}
 
 /*
  *  A generic raindrop/snowflake/magic sparkle particle:
@@ -1490,6 +1485,36 @@ void Sparkle_effect::handle_event(
 		start = false;
 		// Nothing more to do but end.
 		gwin->get_tqueue()->add(stop_time, this, udata);
+	} else              // Must be time to stop.
+		eman->remove_effect(this);
+}
+
+/**
+ *  Fog.
+ */
+
+Fog_effect::~Fog_effect() {
+	gclock->set_fog(false);
+}
+
+Fog_effect::Fog_effect(
+    int duration,           // In game minutes.
+    int delay,          // In msecs.
+    Game_object *egg        // Egg that caused it, or null.
+) : Weather_effect(duration, delay, 4, egg), start(true) {
+		// SI adds sparkle/raindrops to the fog palaette shift
+		// let's do that for all games
+		int rain_delay = 250 + rand() % 1000;
+		eman->add_effect(new Rain_effect<Sparkle>(duration, rain_delay, MAXDROPS/2));
+}
+
+void Fog_effect::handle_event(unsigned long curtime, uintptr udata) {
+	ignore_unused_variable_warning(curtime);
+	if (start) {
+		start = false;
+		// Nothing more to do but end.
+		gwin->get_tqueue()->add(stop_time, this, udata);
+		gclock->set_fog(true);
 	} else              // Must be time to stop.
 		eman->remove_effect(this);
 }

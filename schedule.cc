@@ -45,6 +45,7 @@
 #include "combat.h"
 #include "Audio.h"
 #include "ignore_unused_variable_warning.h"
+#include "array_size.h"
 
 #ifndef UNDER_EMBEDDED_CE
 using std::cout;
@@ -61,7 +62,8 @@ int Patrol_schedule::num_path_eggs = -1;
  */
 Schedule::Schedule(
     Actor *n
-) : npc(n), blocked(-1, -1, -1), street_maintenance_failures(0),
+) : npc(n), blocked(-1, -1, -1), start_pos(n->get_tile()),
+	street_maintenance_failures(0),
 	street_maintenance_time(0) {
 	prev_type = npc ? npc->get_schedule_type() : -1;
 }
@@ -243,19 +245,24 @@ int Schedule::try_street_maintenance(
 	// Get to within 1 tile.
 	Game_object *found = 0;     // Find one we can get to.
 	Actor_action *pact;     // Gets ->action to walk there.
-	for (size_t i = 0; !found && i < sizeof(night) / sizeof(night[0]); i++) {
+	for (size_t i = 0; !found && i < array_size(night); i++) {
 		Game_object_vector objs;// Find nearby.
 		int cnt = npc->find_nearby(objs, shapes[i], 20, 0);
 		int j;
 		for (j = 0; j < cnt; j++) {
 			Game_object *obj = objs[j];
 			int shnum = obj->get_shapenum();
-			if (!bg &&  // Serpent isle?  Shutters?
-			        (shnum == 290 || shnum == 291))
-				// Want closed during day.
-				if ((shapes == day) !=
-				        (obj->get_framenum() <= 3))
+			if (!bg) {					// Serpent isle?  
+			    int frnum = obj->get_framenum();
+			    if ((shnum == 290 || shnum == 291) &&  // Shutters?
+				    // Want closed during day.
+				        (shapes == day) != (frnum <= 3))
 					continue;
+				// Serpent lamp posts can't toggle.
+				if ((shnum == 526 || shnum == 889) &&
+				    (frnum == 0 || frnum == 1 || frnum == 4 || frnum == 5))
+				    continue;
+			}
 			Approach_object_pathfinder_client cost(npc, obj, 1);
 			if ((pact = Path_walking_actor_action::create_path(
 			                npcpos, obj->get_tile(), cost)) != 0) {
@@ -300,6 +307,91 @@ bool Schedule::try_proximity_usecode(int odds) {
 		return true;
 	}
 	return false;
+}
+
+/*
+ *  Remove desk items NPC is holding (that we created).
+ */
+
+void Schedule_with_objects::cleanup()
+{
+	while (!created.empty()) {
+		Game_object *item = created.back();
+		created.pop_back();
+		if (item->get_owner() == npc)
+			item->remove_this();
+	}
+}
+
+Schedule_with_objects::~Schedule_with_objects()
+{
+	cleanup();
+}
+
+static void Remove_vec_obj(Game_object_vector& vec, Game_object *obj)
+{
+   vec.erase(std::remove(vec.begin(), vec.end(), obj), vec.end());
+}
+
+/*
+ *  Notify that an object is no longer present.
+ */
+void Schedule_with_objects::notify_object_gone(Game_object *obj) {
+	if (obj == current_item)
+		current_item = 0;
+	Remove_vec_obj(created, obj);
+}
+
+/*
+ *  Walk to an item.
+ *  Output: false if failed.
+ */
+bool Schedule_with_objects::walk_to_random_item(int dist) {
+	Game_object_vector vec;
+	current_item = 0;
+	int nitems = find_items(vec, dist);
+	if (nitems) {
+		current_item = vec[rand() % nitems];
+		add_client(current_item);
+		Tile_coord spot = current_item->get_tile();
+		int floor = npc->get_lift() / 5;
+		spot.tz = floor*5;
+		Tile_coord pos = Map_chunk::find_spot(spot, 1, npc);
+		if (pos.tx != -1 &&
+		        npc->walk_path_to_tile(pos, gwin->get_std_delay(),
+		                               1000 + rand() % 1000))
+			return true;
+	}
+	return false;
+}
+
+/*
+ *  Drop an item on a table.
+ */
+bool Schedule_with_objects::drop_item(Game_object *to_drop, Game_object *table)
+{
+	Tile_coord spot = npc->get_tile();
+	Rectangle foot = table->get_footprint();
+	// East/West of table?
+	if (spot.ty >= foot.y && spot.ty < foot.y + foot.h)
+		spot.tx = spot.tx <= foot.x ? foot.x
+		                            : foot.x + foot.w - 1;
+	else            // North/south.
+		spot.ty = spot.ty <= foot.y ? foot.y
+		                  : foot.y + foot.h - 1;
+	Shape_info &info = table->get_info();
+	spot.tz = table->get_lift() + info.get_3d_height();
+	Tile_coord pos = Map_chunk::find_spot(spot, 1,
+			   to_drop->get_shapenum(), to_drop->get_framenum());
+	if (pos.tx != -1 && pos.tz == spot.tz &&
+	           foot.has_world_point(pos.tx, pos.ty)) {
+		// Passes test.
+		npc->set_action(new Pickup_actor_action(
+			to_drop, pos, 250, false));
+		--items_in_hand;
+		return true;
+	} else
+		return false;
 }
 
 /*
@@ -373,7 +465,8 @@ Street_maintenance_schedule::Street_maintenance_schedule(
     Actor_action *p,
     Game_object *o
 ) : Schedule(n), obj(o), shapenum(o->get_shapenum()),
-	framenum(o->get_framenum()), paction(p), oldloc(n->get_tile()) {
+	framenum(o->get_framenum()), paction(p),
+	oldloc(n->get_schedule()->get_start_pos()) {
 }
 
 /*
@@ -635,9 +728,9 @@ void Pace_schedule::pace(
 						return;
 					}
 				}
-				blocked.tx = -1;
-				changedir = true;
 			}
+			blocked.tx = -1;
+			changedir = true;
 		}
 
 		if (changedir)
@@ -709,13 +802,19 @@ void Eat_at_inn_schedule::im_dormant() {
 
 void Eat_at_inn_schedule::now_what(
 ) {
-	int frnum = npc->get_framenum();
-	if ((frnum & 0xf) != Actor::sit_frame) {
+	int frnum = npc->get_framenum() & 0xf;
+	if (!sitting_at_chair || frnum != Actor::sit_frame) {
 		// First have to sit down.
-		if (!Sit_schedule::set_action(npc))
-			// Try again in a while.
-			npc->start(250, 5000);
-		return;
+		static int chairs[2] = {873, 292};
+		// Already good?
+		if (frnum == Actor::sit_frame && npc->find_closest(chairs, 2, 1)) {
+			sitting_at_chair = true;
+		} else {
+			if (!Sit_schedule::set_action(npc))
+				// Try again in a while.
+				npc->start(250, 5000);
+			return;
+		}
 	}
 	Game_object_vector foods;           // Food nearby?
 	int cnt = npc->find_nearby(foods, 377, 2, 0);
@@ -1161,8 +1260,11 @@ void Patrol_schedule::now_what(
 			case 14:    // Check area.
 				// Foce check for lamps, etc.
 				street_maintenance_time = 0;
-				if (try_street_maintenance())
+				if (try_street_maintenance()) {
+					// TODO: fix bug 2016
+					//delete scr;
 					return;     // We no longer exist.
+				}
 				delay += 2;
 				(*scr) << Ucscript::delay_ticks << 2;
 				break;
@@ -1667,7 +1769,8 @@ void Dance_schedule::now_what(
 	signed char *frames;
 	int nframes;
 	static char base_frames[] = {Actor::standing, Actor::up_frame, Actor::out_frame};
-	int danceroutine = rand() % 5;
+	static int framecount = array_size(base_frames);
+	int danceroutine = rand() % framecount;
 	int speed = 2 * gwin->get_std_delay();
 	switch (danceroutine) {
 	default: {
@@ -1727,35 +1830,6 @@ void Tool_schedule::get_tool(
 }
 
 /*
- *  Schedule change for tool-user (currently only farming).
- */
-
-void Tool_schedule::now_what(
-) {
-	if (!tool)          // First time?
-		get_tool();
-
-	if (rand() % 4 == 0) {  // 1/4 time, walk somewhere.
-		Loiter_schedule::now_what();
-		return;
-	}
-	if (npc->can_speak() && rand() % 10 == 0) {
-		Schedule_types ty = static_cast<Schedule_types>(npc->get_schedule_type());
-		if (ty == Schedule::farm) {
-			if (rand() % 2)
-				npc->say(first_farmer, last_farmer);
-			else
-				npc->say(first_farmer2, last_farmer2);
-		}
-	}
-	signed char frames[12];     // Use tool.
-	int cnt = npc->get_attack_frames(toolshape, false, rand() % 8, frames);
-	if (cnt)
-		npc->set_action(new Frames_actor_action(frames, cnt));
-	npc->start();           // Get back into time queue.
-}
-
-/*
  *  End of mining/farming:
  */
 
@@ -1766,6 +1840,124 @@ void Tool_schedule::ending(
 		tool->remove_this();    // Should safely remove from NPC.
 		tool = 0;
 	}
+}
+
+static int cropshapes[] = {423};
+static void Grow_crops(Actor *npc)
+{
+	Game_object_vector crops;
+	npc->find_closest(crops, cropshapes, array_size(cropshapes));
+	// Grow the farther ones.
+	int cnt = crops.size();
+	for (Game_object_vector::const_iterator it = crops.begin() + cnt/2;
+	                                        it != crops.end(); ++it) {
+		if (rand()%4)
+			continue;
+		Game_object *c = *it;
+		int frnum = c->get_framenum();
+		int growth = ((frnum&3) + 1) & 3;		
+		if (growth != 3)
+			c->change_frame((frnum & ~3) | growth);
+	}
+}
+
+/*
+ *  Schedule change for tool-user (currently only farming).
+ */
+
+void Farmer_schedule::now_what(
+) {
+	int delay = 0;
+	if (!tool)          // First time?
+		get_tool();
+	switch (state) {
+	case start:
+		// 'Grow' crops. :-)
+		Grow_crops(npc);
+		grow_cnt++;
+		state = find_crop;
+		/* FALL THROUGH */
+	case find_crop: {
+		Game_object_vector crops;
+		crop = 0;
+		if (npc->can_speak() && rand() % 5 == 0)
+			npc->say(first_farmer2, last_farmer2);
+		npc->find_closest(crops, cropshapes, array_size(cropshapes));
+		// Filter out frame #3 (already cut).
+		for (Game_object_vector::const_iterator it = crops.begin();
+		                                        it != crops.end(); ++it) {
+			if ((*it)->get_framenum()%4 != 3) {
+				crop = *it;
+				if (rand()%3 == 0)		// A little randomness.
+					break;
+			}
+		}
+		if (crop) {
+			Actor_pathfinder_client cost(npc, 2);
+			Actor_action *pact =
+			    Path_walking_actor_action::create_path(
+			        npc->get_tile(), crop->get_tile(), cost);
+			if (pact) {
+				state = attack_crop;
+				npc->set_action(new Sequence_actor_action(pact,
+				                new Face_pos_actor_action(crop, 200)));
+				break;
+			} else
+				crop = 0;
+		}
+		state = wander;
+		delay = 1000 + rand() % 1000; // Try again later.
+		break;
+	}
+	case attack_crop: {
+		if (crop->is_pos_invalid() || npc->distance(crop) > 2) {
+			state = find_crop;
+			break;
+		}
+		signed char frames[20];     // Use tool.
+		int dir = npc->get_direction(crop);
+		int cnt = npc->get_attack_frames(toolshape, false, dir,
+		                                 frames);
+		if (cnt) {
+			frames[cnt++] = npc->get_dir_framenum(
+			                    dir, Actor::standing);
+			npc->set_action(new Frames_actor_action(frames, cnt));
+			state = crop_attacked;
+		} else
+			state = wander;
+		break;
+	}
+	case crop_attacked:
+		if (crop->is_pos_invalid()) {
+			state = find_crop;
+			break;
+		}
+		if (npc->can_speak() && rand() % 8 == 0)
+			npc->say(first_farmer, last_farmer);
+		if (rand() % 3 == 0) {      // Cut down crop.
+			int frnum = crop->get_framenum();
+			// Frame 3 in each group of 4 is 'cut'.
+			crop->change_frame(frnum | 3);
+			crop = 0;
+			// Wander now and then.
+			state = (rand()%4 == 0) ? wander : find_crop;
+			if (grow_cnt < 4 && rand()%2) {
+				Grow_crops(npc);
+				++grow_cnt;
+			}
+			delay = 500 + rand() % 2000;
+		} else {
+			state = attack_crop;
+			delay = 250;
+		}
+		break;
+	case wander:
+		Loiter_schedule::now_what();
+		if (rand() % 2 == 0)
+			state = find_crop;
+		return;
+	}
+	npc->start(gwin->get_std_delay(), delay);
 }
 
 /*
@@ -1781,8 +1973,7 @@ void Miner_schedule::now_what(
 	case find_ore: {
 		static int oreshapes[] = {915, 916};
 		Game_object_vector ores;
-		npc->find_closest(ores, oreshapes,
-		                  sizeof(ores) / sizeof(ores[0]));
+		npc->find_closest(ores, oreshapes, array_size(oreshapes));
 		int from, to, cnt = ores.size();
 		// Filter out frame #3 (dust).
 		for (from = to = 0; from < cnt; ++from)
@@ -2415,8 +2606,7 @@ bool Sit_schedule::set_action(
 		*chair_found = 0;   // Init. in case we fail.
 	if (!chairobj) {        // Find chair if not given.
 		static int chairshapes[] = {873, 292};
-		actor->find_closest(chairs, chairshapes,
-		                    sizeof(chairs) / sizeof(chairs[0]));
+		actor->find_closest(chairs, chairshapes, array_size(chairshapes));
 		for (Game_object_vector::const_iterator it = chairs.begin();
 		        it != chairs.end(); ++it)
 			if (!Sit_actor_action::is_occupied((*it), actor)) {
@@ -2442,27 +2632,7 @@ bool Sit_schedule::set_action(
 
 Desk_schedule::Desk_schedule(
     Actor *n
-) : Schedule(n), chair(0), desk(0), table(0), desk_item(0), 
-  				 items_in_hand(0), state(desk_setup) {
-}
-
-Desk_schedule::~Desk_schedule()
-{
-    cleanup();
-}
-
-/*
- *  Remove desk items NPC is holding (that we created).
- */
-
-void Desk_schedule::cleanup()
-{
-	while (!created.empty()) {
-        Game_object *item = created.back();
-		created.pop_back();
-		if (item->get_owner() == npc)
-		    item->remove_this();
-	}
+) : Schedule_with_objects(n), chair(0), desk(0), table(0), state(desk_setup) {
 }
 
 /*
@@ -2492,7 +2662,11 @@ bool Desk_schedule::walk_to_table() {
 	if (tables.size()) {
 		table = tables[rand() % tables.size()];
 		add_client(table);
-		Tile_coord pos = Map_chunk::find_spot(table->get_tile(), 1, npc);
+//		Tile_coord pos = Map_chunk::find_spot(table->get_tile(), 1, npc);
+		// This will find a random spot around the table:
+		Tile_coord pos = Map_chunk::find_spot(table->get_tile(), 1, 
+				   npc->get_shapenum(), npc->get_framenum());
+
 		if (pos.tx != -1 &&
 		        npc->walk_path_to_tile(pos, gwin->get_std_delay(),
 		                               1000 + rand() % 1000))
@@ -2503,10 +2677,10 @@ bool Desk_schedule::walk_to_table() {
 }
 
 static char desk_frames[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15};
-#define DESK_FRAMES_CNT   	sizeof(desk_frames)/sizeof(desk_frames[0])
-static int find_desk_items(Game_object_vector &vec, Actor *npc)
+#define DESK_FRAMES_CNT   array_size(desk_frames)
+int Desk_schedule::find_items(Game_object_vector &vec, int dist)
 {
-	npc->find_nearby(vec, 675, 16, 0);
+	npc->find_nearby(vec, 675, dist, 0);
 	int floor = npc->get_lift() / 5; // Make sure it's on same floor.
 	for (Game_object_vector::iterator it = vec.begin(); it != vec.end();) {
 		Game_object *item = *it;
@@ -2517,29 +2691,6 @@ static int find_desk_items(Game_object_vector &vec, Actor *npc)
 			++it;
 	}
 	return vec.size();
-}
-
-/*
- *  Walk to desk item.
- *  Output: false if failed.
- */
-bool Desk_schedule::walk_to_desk_item() {
-	Game_object_vector vec;
-	desk_item = 0;
-	int nitems = find_desk_items(vec, npc);
-	if (nitems) {
-	    desk_item = vec[rand() % nitems];
-		add_client(desk_item);
-		Tile_coord spot = desk_item->get_tile();
-		int floor = npc->get_lift() / 5;
-		spot.tz = floor*5;
-		Tile_coord pos = Map_chunk::find_spot(spot, 1, npc);
-		if (pos.tx != -1 &&
-		        npc->walk_path_to_tile(pos, gwin->get_std_delay(),
-		                               1000 + rand() % 1000))
-			return true;
-	}
-	return false;
 }
 
 // Pick a 'reasonable' desk item frame to create.
@@ -2582,14 +2733,16 @@ void Desk_schedule::now_what(
 		static int desks[2] = {283, 407};
 		Stand_up(npc);
 		if (tables.empty()) {
-		    find_tables(890);
+			find_tables(890);
 			find_tables(633);
 			find_tables(1000);
+			find_tables(283);			// Desks too.
+			find_tables(407);
 		}
 		// Create desk items if needed.
 		items_in_hand = npc->count_objects(675);
 		Game_object_vector vec;
-		int nearby = find_desk_items(vec, npc);
+		int nearby = Desk_schedule::find_items(vec, 16);
 		int nitems = (7 + rand()%5) - items_in_hand - nearby;
 		if (nitems > 0) {
 			items_in_hand += nitems;
@@ -2597,13 +2750,13 @@ void Desk_schedule::now_what(
 				int frame = Desk_item_frame();
 				Game_object *item = new Ireg_game_object(675, frame, 0, 0, 0);
 				npc->add(item, true);
-				created.push_back(item);
+				add_object(item);
 			}
 		}
 		desk = npc->find_closest(desks, 2);
 		if (desk) {
-			static int chairs[2] = {873, 292};
-			chair = desk->find_closest(chairs, 2);
+			static int chairs[] = {873, 292};
+			chair = desk->find_closest(chairs, array_size(chairs));
 		}
 		if (!chair) {   // Failed.
 			// Try again in a few seconds.
@@ -2613,96 +2766,83 @@ void Desk_schedule::now_what(
 		add_client(chair);
 		state = sit_at_desk;
 		}
-		/* FALL THROUGH */		
+		/* FALL THROUGH */
 	case sit_at_desk: {
 		int frnum = npc->get_framenum();
 		// Not sitting?
 		if ((frnum & 0xf) != Actor::sit_frame) {
-		    if (!Sit_schedule::set_action(npc, chair, 0)) {
-			    chair = 0;  // Look for any nearby chair.
+			if (!Sit_schedule::set_action(npc, chair, 0)) {
+				chair = 0;  // Look for any nearby chair.
 				state = desk_setup;
 				npc->start(200, 5000);  // Failed?  Try again later.
 			} else
-			    npc->start(250, 0);
-		} else if (rand() % (2 + items_in_hand) && walk_to_table()) {
-		    state = work_at_table;
-		} else if (rand() % 2 && walk_to_desk_item()) {
-		    state = get_desk_item;
+				npc->start(250, 0);
+		} else if (rand() % (1 + items_in_hand) && walk_to_table()) {
+			state = work_at_table;
+		} else if (rand() % 2 && walk_to_random_item()) {
+			state = get_desk_item;
 		} else {            // Stand up a second.
-		    signed char frames[5];
+			signed char frames[5];
 			frames[0] = npc->get_dir_framenum(Actor::standing);
 			frames[1] = npc->get_dir_framenum(Actor::reach1_frame);
 			frames[2] = npc->get_dir_framenum(Actor::standing);
 			frames[3] = npc->get_dir_framenum(Actor::bow_frame);
 			frames[4] = npc->get_dir_framenum(Actor::sit_frame);
 			npc->set_action(new Frames_actor_action(frames,
-		                                sizeof(frames) / sizeof(frames[0])));
+			                                array_size(frames)));
 			npc->start(250, 3000 + rand() % 2000);
 		}
 		break;
 		}
 	case get_desk_item:
-		if (desk_item && npc->distance(desk_item) <= 3) {
-		    npc->set_action(new Pickup_actor_action(desk_item, 250));
+		if (current_item && npc->distance(current_item) <= 3) {
+			// Turn to face it.
+			npc->change_frame(npc->get_dir_framenum(
+			        npc->get_direction(current_item), Actor::standing));
+			npc->set_action(new Pickup_actor_action(current_item, 250));
 			state = picked_up_item;
 		} else
-		    state = sit_at_desk;
+			state = sit_at_desk;
 		npc->start(250, 500 + rand()%1000);
 		break;
 	case picked_up_item:
-		desk_item = 0;
+		current_item = 0;
 		if (rand() % 2 && walk_to_table()) {
-		    state = work_at_table;
+			state = work_at_table;
 			break;
 		} else
 			state = sit_at_desk;
 		npc->start(250, 1000 + rand() % 500);
 		break;
 	case work_at_table:
+		// Turn to face it.
+		npc->change_frame(npc->get_dir_framenum(
+		           npc->get_facing_direction(table), Actor::standing));
 		if (rand() % 3 == 0) {
-		    state = sit_at_desk;		// Back to desk.
-		} else if (rand() % 4) {		// Put down an item.
-		    Game_object_vector items;
-		    int nitems = npc->get_objects(items, 675, 
-					   	 					c_any_qual, c_any_framenum);
-			items_in_hand = nitems;		// Save value.
-			if (nitems) {
-			    Tile_coord spot = npc->get_tile();
-			    Rectangle foot = table->get_footprint();
-				Game_object *to_drop = items[rand()%nitems];
-				// East/West of table?
-				if (spot.ty >= foot.y && spot.ty < foot.y + foot.h)
-				    spot.tx = spot.tx <= foot.x ? foot.x
-			          		  		  : foot.x + foot.w - 1;
-				else            // North/south.
-				    spot.ty = spot.ty <= foot.y ? foot.y
-			          		  		  : foot.y + foot.h - 1;
-				Shape_info &info = table->get_info();
-				spot.tz = table->get_lift() + info.get_3d_height();
-				Tile_coord pos = Map_chunk::find_spot(spot, 1, 
-						   to_drop->get_shapenum(), to_drop->get_framenum());
-			    if (pos.tx != -1 && pos.tz == spot.tz &&
-				    	   foot.has_world_point(pos.tx, pos.ty)) {
-				    // Passes test.
-					npc->set_action(new Pickup_actor_action(
-						to_drop, pos, 250, false));
-					--items_in_hand;
+			state = sit_at_desk;		// Back to desk.
+		} else if (items_in_hand && rand() % 6) {		// Put down an item.
+			Game_object_vector items;
+			items_in_hand = npc->get_objects(items, 675,
+			                                 c_any_qual, c_any_framenum);
+			if (items_in_hand) {
+				Game_object *to_drop = items[rand()%items_in_hand];
+				if (drop_item(to_drop, table)) {
 					if (rand() % 2)
-					    state = sit_at_desk;
+						state = sit_at_desk;
 				}
 			} else
-			   state = sit_at_desk;
+				state = sit_at_desk;
 		} else {
-		    int dir = npc->get_direction(table);
-		    signed char frames[3];
+			int dir = npc->get_facing_direction(table);
+			signed char frames[3];
 			frames[0] = npc->get_dir_framenum(dir, Actor::standing);
 			frames[1] = npc->get_dir_framenum(dir, (rand()%2)
 					  ? Actor::reach1_frame : Actor::reach2_frame);
 			frames[2] = npc->get_dir_framenum(dir, Actor::standing);
-		    Actor_action *face = new Face_pos_actor_action(table, 200);;
+			Actor_action *face = new Face_pos_actor_action(table, 200);;
 			npc->set_action(new Sequence_actor_action(face,
-								new Frames_actor_action(frames,
-		                                sizeof(frames) / sizeof(frames[0]))));
+			                    new Frames_actor_action(frames,
+			                            array_size(frames))));
 		}
 		npc->start(250, 1000 + rand() % 500);
 		break;
@@ -2736,25 +2876,12 @@ void Desk_schedule::notify_object_gone(Game_object *obj) {
 	if (obj == chair) {
 		chair = 0;
 	} else if (obj == desk) {
-	    desk = 0;
+		desk = 0;
 	} else if (obj == table) {
-	    table = 0;
-	} else if (obj == desk_item) {
-	    desk_item = 0;
+		table = 0;
 	}
-	vector<Game_object *>::iterator it;
-	for (it = tables.begin(); it != tables.end(); ++it) {
-		if (*it == obj) {
-		    tables.erase(it);
-			break;
-		}
-	}
-	for (it = created.begin(); it != created.end(); ++it) {
-		if (*it == obj) {
-		    created.erase(it);
-			break;
-		}
-	}
+	Remove_vec_obj(tables, obj);
+	Schedule_with_objects::notify_object_gone(obj);
 }
 
 /*
@@ -2818,7 +2945,7 @@ void Perimeter::get(
 		return;
 	}
 	i -= perim.w - 1;
-	{
+	if (i < perim.h - 1) {
 		ptile = Tile_coord(perim.x, perim.y + perim.h - 1 - i, 0);
 		atile = ptile + Tile_coord(1, !i ? -1 : 0, 0);
 		return;
@@ -3012,13 +3139,7 @@ void Lab_schedule::notify_object_gone(Game_object *obj) {
 		cauldron = 0;
 		state = start;
 	} else {
-		for (vector<Game_object *>::iterator it = tables.begin();
-		        it != tables.end(); ++it) {
-			if (*it == obj) {
-				tables.erase(it);
-				break;
-			}
-		}
+		Remove_vec_obj(tables, obj);
 	}
 }
 
@@ -3131,8 +3252,85 @@ void Thief_schedule::now_what(
 
 Waiter_schedule::Waiter_schedule(
     Actor *n
-) : Schedule(n), startpos(n->get_tile()), customer(0), prep_table(0),
+) : Schedule_with_objects(n), startpos(n->get_tile()), customer(0),
+	prep_table(0), cooking(false),
 	state(waiter_setup) {
+}
+
+static int waiter_shapes[] = {616, 628, 944};
+const int waiter_nshapes = sizeof(waiter_shapes)/sizeof(waiter_shapes[0]);
+int Waiter_schedule::find_items(Game_object_vector &vec, int dist)
+{
+	if (cooking) {					// Find food, pot.
+		npc->find_nearby(vec, 377, dist, 0);
+		npc->find_nearby(vec, 944, dist, 0);
+	}
+	if (!cooking || !vec.size()) {
+		// Bottle, cup, pot
+		for (int i = 0; i < waiter_nshapes; ++i)
+			npc->find_nearby(vec, waiter_shapes[i], dist, 0);
+	}
+	int floor = npc->get_lift() / 5; // Make sure it's on same floor.
+	for (Game_object_vector::iterator it = vec.begin(); it != vec.end();) {
+		Game_object *item = *it;
+		if (item->get_lift() / 5 != floor)
+			it = vec.erase(it);
+		else
+			++it;
+	}
+	return vec.size();
+}
+
+static int Count_waiter_objects(Actor *npc)
+{
+	int cnt = 0;
+	for (int i = 0; i < waiter_nshapes; ++i)
+		cnt += npc->count_objects(waiter_shapes[i]);
+	return cnt;
+}
+
+static int Get_waiter_objects(Actor *npc, Game_object_vector& items,
+                              bool cooking = false)
+{
+	int cnt = 0;
+	if (cooking) {					// Find food, pot.
+	    cnt += npc->get_objects(items, 377, c_any_qual, c_any_framenum);
+		cnt += npc->get_objects(items, 944, c_any_qual, c_any_framenum);
+	}
+	if (!cooking || !cnt) {
+		for (int i = 0; i < waiter_nshapes; ++i) {
+			cnt += npc->get_objects(items, waiter_shapes[i],
+			                               c_any_qual, c_any_framenum);
+		}
+	}
+	return cnt;
+}
+
+/*
+ *	Fill in 'plates' list with ones we may have created, ordered by closest
+ *  first.  Return true if not empty.
+ */
+bool Waiter_schedule::find_unattended_plate()
+{
+	if (unattended_plates.empty()) {
+		static int shapes[] = {717};
+		const int shapecnt = sizeof(shapes)/sizeof(shapes[0]);
+		(void) npc->find_closest(unattended_plates, shapes, shapecnt, 32);
+		int floor = npc->get_lift() / 5; // Make sure it's on same floor.
+
+		for (Game_object_vector::iterator it = unattended_plates.begin();
+										     it != unattended_plates.end(); ) {
+			Actor_vector custs;
+			Game_object *plate = *it;
+			if (plate->get_lift() / 5 != floor ||
+				!plate->get_flag(Obj_flags::is_temporary) ||
+				plate->find_nearby_actors(custs, c_any_shapenum, 2))
+				it = unattended_plates.erase(it);
+			else
+				++it;
+		}
+	}
+	return !unattended_plates.empty();
 }
 
 /*
@@ -3156,7 +3354,8 @@ bool Waiter_schedule::find_customer(
 	if (!customers.empty()) {
 		customer = customers.back();
 		customers.pop_back();
-	}
+	} else
+		customer = 0;
 	return customer != 0;
 }
 
@@ -3164,10 +3363,13 @@ bool Waiter_schedule::find_customer(
  *  Walk to prep. table.
  *  Output: false if failed.
  */
-bool Waiter_schedule::walk_to_prep(
+bool Waiter_schedule::walk_to_work_spot(
+    bool counter
 ) {
-	if (prep_tables.size()) {   // Walk to a 'prep' table.
-		prep_table = prep_tables[rand() % prep_tables.size()];
+	vector <Game_object *> &tables = counter ? counters : prep_tables;
+	while (tables.size()) {   // Walk to a 'prep' table.
+		int index = rand() % tables.size();
+		prep_table = tables[index];
 		add_client(prep_table);
 		Tile_coord pos = Map_chunk::find_spot(
 		                     prep_table->get_tile(), 1, npc);
@@ -3175,8 +3377,10 @@ bool Waiter_schedule::walk_to_prep(
 		        npc->walk_path_to_tile(pos, gwin->get_std_delay(),
 		                               1000 + rand() % 1000))
 			return true;
-	} else
-		prep_table = 0;
+		// Failed, so remove this table from the list.
+		tables.erase(tables.begin() + index);
+	}
+	prep_table = 0;
 	const int dist = 8;     // Bad luck?  Walk randomly.
 	int newx = startpos.tx - dist + rand() % (2 * dist);
 	int newy = startpos.ty - dist + rand() % (2 * dist);
@@ -3214,10 +3418,12 @@ bool Waiter_schedule::walk_to_customer(
  */
 
 void Waiter_schedule::find_tables(
-    int shapenum
+    int shapenum,
+    int dist,
+    bool is_prep
 ) {
 	Game_object_vector vec;
-	npc->find_nearby(vec, shapenum, 32, 0);
+	npc->find_nearby(vec, shapenum, dist, 0);
 	int floor = npc->get_lift() / 5; // Make sure it's on same floor.
 	for (Game_object_vector::const_iterator it = vec.begin(); it != vec.end();
 	        ++it) {
@@ -3225,39 +3431,73 @@ void Waiter_schedule::find_tables(
 		if (table->get_lift() / 5 != floor)
 			continue;
 		Game_object_vector chairs;      // No chairs by it?
+		                                // TODO: check for nearby stove.
 		if (!table->find_nearby(chairs, 873, 3, 0) &&
-		        !table->find_nearby(chairs, 292, 3, 0))
-			prep_tables.push_back(table);
-		else
+		        !table->find_nearby(chairs, 292, 3, 0)) {
+			if (is_prep)
+				prep_tables.push_back(table);
+			else if (shapenum == 847)
+				counters.push_back(table);
+		} else
 			eating_tables.push_back(table);
 		add_client(table);
 	}
 }
 
-/*
- *  Find serving spot for a customer.
- *
- *  Output: Plate if found, with spot set.  Plate is created if needed.
- */
+void Waiter_schedule::find_prep_tables()
+{
+	static int shapes[] = {333, 1018, 1003,		// Tables.
+	                       664, 872,       		// Stoves
+	                       995};           		// Cauldron
+	const int nshapes = sizeof(shapes)/sizeof(shapes[0]);
+	for (int i = 0; i < nshapes; ++i)
+		find_tables(shapes[i], 26, true);
+	if (prep_tables.empty()) {		// Look farther.
+		for (int i = 0; i < nshapes; ++i)
+			find_tables(shapes[i], 36, true);
+	}
+	if (prep_tables.empty()) {
+		for (int i = 0; i < nshapes; ++i)
+			find_tables(shapes[i], 50, true);
+	}
+}
 
-Game_object *Waiter_schedule::find_serving_spot(
-    Tile_coord &spot
-) {
+static Game_object *Find_customer_table(Actor *customer,
+                                        Game_object_vector& tables)
+{
+	Game_object_vector::const_iterator it;
+	for (it = tables.begin(); it != tables.end(); ++it) {
+		if (customer->distance(*it) < 3)
+			return *it;
+	}
+	return 0;
+}
+
+static Game_object *Find_customer_plate(Actor *customer)
+{
 	Game_object_vector plates;  // First look for a nearby plate.
 	Game_object *plate = 0;
 	Game_object_vector::const_iterator it;
-	int cnt = npc->find_nearby(plates, 717, 1, 0);
+
+	(void) customer->find_nearby(plates, 717, 1, 0);
+#if 0 /* Causes customer to not get served if their neighbor has. */
 	if (!cnt)
-		cnt = npc->find_nearby(plates, 717, 2, 0);
-	int floor = npc->get_lift() / 5; // Make sure it's on same floor.
+		cnt = customer->find_nearby(plates, 717, 2, 0);
+#endif
+	int floor = customer->get_lift() / 5; // Make sure it's on same floor.
 	for (it = plates.begin(); it != plates.end(); ++it) {
 		plate = *it;
-		if (plate->get_lift() / 5 == floor) {
-			spot = plate->get_tile();
-			spot.tz++;  // Just above plate.
+		int platez = plate->get_lift();
+		if (platez / 5 == floor && platez%5 != 0) {
 			return plate;
 		}
 	}
+	return 0;
+}
+
+Game_object *Waiter_schedule::create_customer_plate(
+) {
+	Game_object_vector::const_iterator it;
 	Tile_coord cpos = customer->get_tile();
 
 	// Go through tables.
@@ -3267,7 +3507,7 @@ Game_object *Waiter_schedule::find_serving_spot(
 		if (foot.distance(cpos.tx, cpos.ty) > 2)
 			continue;
 		// Found it.
-		spot = cpos;        // Start here.
+		Tile_coord spot = cpos;        // Start here.
 		// East/West of table?
 		if (cpos.ty >= foot.y && cpos.ty < foot.y + foot.h)
 			spot.tx = cpos.tx <= foot.x ? foot.x
@@ -3279,13 +3519,84 @@ Game_object *Waiter_schedule::find_serving_spot(
 			// Passes test.
 			Shape_info &info = table->get_info();
 			spot.tz = table->get_lift() + info.get_3d_height();
-			plate = gmap->create_ireg_object(717, 0);
+			// Small plates:  frames 4, 5.  Seems random.
+			Game_object *plate = gmap->create_ireg_object(717, 4 + rand()%2);
+			plate->set_flag(Obj_flags::is_temporary);
 			plate->move(spot);
-			spot.tz++;  // Food goes above plate.
 			return plate;
 		}
 	}
 	return 0;           // Failed.
+}
+
+static void Ready_food(Actor *npc)
+{
+	Game_object *food, *obj = npc->get_readied(lhand);
+	if (obj) {							// Already something there?
+		if (obj->get_shapenum() == 377)
+			return;						// Food, so done.
+		npc->remove(obj);				// Make space.
+	}
+	Game_object_vector items;
+	if (npc->get_objects(items, 377, c_any_qual, c_any_framenum)) {
+		// Already have one, so just move it.
+		food = items[0];
+		npc->remove(food);
+	} else {
+		// Acquire some food.
+		int nfoods = ShapeID(377, 0).get_num_frames();
+		int frame = rand() % nfoods;
+		food = new Ireg_game_object(377, frame, 0, 0, 0);
+		food->set_flag(Obj_flags::is_temporary);
+		food->clear_flag(Obj_flags::okay_to_take);
+	}
+	npc->add_readied(food, lhand);
+	if (obj)
+		npc->add(obj, true);			// Add back what was there before.
+}
+
+/*
+ *  Find serving spot for a customer.
+ *
+ *  Output: Plate if found, with spot set.  Plate is created if needed.
+ */
+
+Game_object *Waiter_schedule::find_serving_spot(
+    Tile_coord &spot
+) {
+	// First look for a nearby plate.
+	Game_object *plate = Find_customer_plate(customer);
+	if (!plate)
+		plate = create_customer_plate();
+	if (plate) {
+		spot = plate->get_tile();
+		spot.tz++;  // Just above plate.
+	}
+	return plate;
+}
+
+static void Prep_animation(Actor *npc, Game_object *table)
+{
+	npc->change_frame(npc->get_dir_framenum(npc->get_facing_direction(table),
+	                                  Actor::standing));
+	Usecode_script *scr = new Usecode_script(npc);
+	(*scr) << Ucscript::face_dir << npc->get_dir_facing();
+	for (int cnt = 1 + rand() % 3; cnt; --cnt) {
+		(*scr) << (Ucscript::npc_frame + Actor::ready_frame)
+		       << Ucscript::delay_ticks << 1
+		       << (Ucscript::npc_frame + Actor::raise1_frame)
+		       << Ucscript::delay_ticks << 1;
+	}
+	(*scr) << (Ucscript::npc_frame + Actor::standing);
+	scr->start();   // Start next tick.
+	int shapenum = table->get_shapenum();
+	// Cauldron or stove?  Animate a little.
+	if (shapenum == 995) {
+		// Don't use last cauldron frame.
+		table->change_frame(rand() % (table->get_num_frames() - 1));
+	} else if (shapenum == 664 || shapenum == 872) {
+		table->change_frame(rand() % table->get_num_frames());
+	}
 }
 
 /*
@@ -3296,7 +3607,7 @@ void Waiter_schedule::now_what(
 ) {
 	Game_object *food;
 
-	if (state == get_customer &&
+	if (state == wait_at_counter &&
 	        rand() % 4 == 0)        // Check for lamps, etc.
 		if (try_street_maintenance())
 			return;     // We no longer exist.
@@ -3315,14 +3626,13 @@ void Waiter_schedule::now_what(
 	}
 	switch (state) {
 	case waiter_setup:
-		find_tables(971);
-		find_tables(633);
-		find_tables(847);
-		find_tables(1003);
-		find_tables(1018);
-		find_tables(890);
-		find_tables(964);
-		find_tables(333);
+		items_in_hand = Count_waiter_objects(npc);
+		find_tables(971, 24);
+		find_tables(633, 24);
+		find_tables(847, 24);
+		find_tables(890, 24);
+		find_tables(964, 24);
+		find_prep_tables();
 		state = get_customer;
 		/* FALL THROUGH */
 	case get_customer:
@@ -3335,54 +3645,138 @@ void Waiter_schedule::now_what(
 	case get_order: {
 		Game_object_vector foods;
 		// Close enough to customer?
-		if (customer->find_nearby(foods, 377, 2, 0) > 0) {
+		if (customer->find_nearby(foods, 377, 1, 0) > 0) {
 			if (rand() % 4)
-				npc->say(first_waiter_banter,
-				         last_waiter_banter);
-			state = get_customer;
-			npc->start(200, 1000 + rand() % 2000);
-			break;
+				npc->say(first_waiter_banter, last_waiter_banter);
+		} else {
+			// Ask for order.
+			npc->say(first_waiter_ask, last_waiter_ask);
+			if (!Find_customer_plate(customer)) {
+				state = give_plate;
+				npc->start(gwin->get_std_delay(), 500 + rand() % 1000);
+				break;
+			}
+			customers_ordered.push_back(customer);
 		}
-		// Ask for order.
-		npc->say(first_waiter_ask, last_waiter_ask);
-		walk_to_prep();
-		state = prep_food;
+		state = took_order;
+	}
+	/* FALL THROUGH */
+	case took_order:
+		// Get up to 4 orders before serving them.
+		if (customers_ordered.size() >= 4 || customers.empty()) {
+			walk_to_prep();
+			state = prep_food;
+		} else {
+			state = get_customer;
+			npc->start(gwin->get_std_delay(), 500 + rand() % 1000);
+		}
+		break;
+	case give_plate: {
+		create_customer_plate();
+		Usecode_script *scr = new Usecode_script(npc);
+		(*scr) << Ucscript::face_dir << npc->get_dir_facing()
+		       << (Ucscript::npc_frame + Actor::ready_frame)
+		       << Ucscript::delay_ticks << 2
+		       << (Ucscript::npc_frame + Actor::standing);
+		scr->start();   // Start next tick.
+		state = took_order;
+		customers_ordered.push_back(customer);
+		npc->start(gwin->get_std_delay(), 500 + rand() % 1000);
 		break;
 	}
 	case prep_food:
-		if (prep_table && npc->distance(prep_table) <= 3) {
+		if (cooking && items_in_hand < 4 &&
+		            rand()%2 == 0 && walk_to_random_item(4)) {
+			state = get_waiter_item;
+			break;
+		}
+		Ready_food(npc);					// So we can drop it.
+		if ((!cooking || rand()%3) &&
+		              prep_table && npc->distance(prep_table) <= 3) {
+			Game_object *to_drop = 0;
+			if (rand()%3) {
+				Game_object_vector items;
+				items_in_hand = Get_waiter_objects(npc, items, true);
+				to_drop = items_in_hand ? items[rand()%items_in_hand] : 0;
+			}
+			cooking = true;
+			if (to_drop)
+				(void) drop_item(to_drop, prep_table);
+			else
+				Prep_animation(npc, prep_table);
+			npc->start(gwin->get_std_delay(), 500 + rand() % 500);
+			break;
+		}
+		if (rand()%3 == 1 && prep_tables.size() > 1) {
+			// A little more cooking.
+			walk_to_prep();
+			break;
+		}
+		Ready_food(npc);
+		cooking = false;
+		state = bring_food;
+		/* FALL THROUGH. */
+	case bring_food:
+		if (customers_ordered.empty()) {		// All done serving them?
+			if (rand() % 3 == 0)
+				gwin->get_usecode()->call_usecode(
+				     npc->get_usecode(), npc,
+				    Usecode_machine::npc_proximity);
+			if (walk_to_counter())
+				state = wait_at_counter;
+			else
+				state = get_customer;
+		} else {
+			customer = customers_ordered.back();
+			customers_ordered.pop_back();
+			Ready_food(npc);
+			if (walk_to_customer(3000)) {
+				state = serve_food;
+			} else {
+				state = get_customer;
+			}
+		}
+		break;
+	case wait_at_counter: {
+		/* Check for customers who have left: */
+		if (rand()%2 && find_unattended_plate()) {
+			state = walk_to_cleanup_food;
+		} else if (items_in_hand < 3 && rand() % 2 && walk_to_random_item(12)) {
+			state = get_waiter_item;
+			break;
+		} else if (prep_table) {
 			npc->change_frame(npc->get_dir_framenum(
 			                      npc->get_facing_direction(prep_table),
 			                      Actor::standing));
-			Usecode_script *scr = new Usecode_script(npc);
-			(*scr) << Ucscript::face_dir << npc->get_dir_facing();
-			for (int cnt = 1 + rand() % 3; cnt; --cnt) {
-				(*scr) << (Ucscript::npc_frame + Actor::ready_frame)
-				       << Ucscript::delay_ticks << 1
-				       << (Ucscript::npc_frame + Actor::raise1_frame)
-				       << Ucscript::delay_ticks << 1;
-			}
-			(*scr) << (Ucscript::npc_frame + Actor::standing);
-			scr->start();   // Start next tick.
-		}
-		if (!npc->get_readied(lhand)) {
-			// Acquire some food.
-			int nfoods = ShapeID(377, 0).get_num_frames();
-			int frame = rand() % nfoods;
-			food = new Ireg_game_object(377, frame, 0, 0, 0);
-			npc->add_readied(food, lhand);
-		}
-		if (!walk_to_customer(3000)) {
+			if (rand()%2)
+				Prep_animation(npc, prep_table);
+			if (rand()%3 == 1)
+				state = get_customer;
+		} else
 			state = get_customer;
-			if (rand() % 3 == 0)
-				gwin->get_usecode()->call_usecode(
-				    npc->get_usecode(), npc,
-				    Usecode_machine::npc_proximity);
-		} else {
-			state = serve_food;
-		}
+		npc->start(gwin->get_std_delay(), 2000 + rand() % 2000);
 		break;
-	case serve_food:
+	}
+	case get_waiter_item:
+		if (current_item && npc->distance(current_item) <= 3) {
+			npc->set_action(new Pickup_actor_action(current_item, 250));
+			state = picked_up_item;
+			npc->start(250, 500 + rand()%1000);
+			++items_in_hand;
+			break;
+		}
+		/* FALL THROUGH */
+	case picked_up_item:
+		current_item = 0;
+		if (cooking) {
+			walk_to_prep();
+			state = prep_food;
+		} else if (walk_to_counter()) {
+			state = wait_at_counter;
+		} else
+			state = get_customer;
+		break;
+	case serve_food: {
 		food = npc->get_readied(lhand);
 		Tile_coord spot;
 		if (food && food->get_shapenum() == 377 &&
@@ -3403,10 +3797,71 @@ void Waiter_schedule::now_what(
 			       << (Ucscript::npc_frame + Actor::standing);
 			scr->start();   // Start next tick.
 		}
-		state = get_customer;
+		state = served_food;
+		npc->start(250, 1000 + rand() % 1000);
+		break;
+	}
+	case served_food:
+		// Randomly drop or pick up an item.
+		if (rand() % 2) {
+			if (customer && items_in_hand > 0) {
+				Game_object_vector items;
+				items_in_hand = Get_waiter_objects(npc, items);
+				if (items_in_hand) {
+					Game_object *table = Find_customer_table(customer,
+														eating_tables);
+					Game_object *to_drop = items[rand()%items_in_hand];
+					if (table)
+						(void) drop_item(to_drop, table);
+				}
+			}
+		} else if (items_in_hand < 4) {
+			Game_object_vector items;	// Look near by to pick up an item.
+			int cnt = Waiter_schedule::find_items(items, 4);
+			if (cnt) {
+				npc->set_action(
+						new Pickup_actor_action(items[rand()%cnt], 250));
+				++items_in_hand;
+			}
+		}
 		customer = 0;       // Done with this one.
-		npc->start(250, 1000 + rand() % 2000);
-		return;
+		state = bring_food;		// On to the next.
+		npc->start(gwin->get_std_delay(), 1000 + rand() % 1000);
+		break;
+	case walk_to_cleanup_food:
+		if (!unattended_plates.empty()) {
+			// Closest.
+			Game_object *plate = unattended_plates.front();
+			if (npc->walk_path_to_tile(plate->get_tile(),
+			        gwin->get_std_delay(), 500 + rand() % 1000, 2)) {
+				state = cleanup_food;
+				break;
+			} else {
+				unattended_plates.erase(unattended_plates.begin());
+				npc->start(gwin->get_std_delay(), 0);
+			}
+		} else {
+			state = walk_to_counter() ? wait_at_counter : get_customer;
+		}
+		break;
+	case cleanup_food:
+		if (!unattended_plates.empty()) {
+			Game_object *plate = unattended_plates.front();
+			unattended_plates.erase(unattended_plates.begin());
+			// Delete after picking up.
+			Actor_action *act = new Pickup_actor_action(plate, 250, true);
+			Game_object *food = plate->find_closest(377, 2);
+			if (food) {
+				act = new Sequence_actor_action(act,
+					       new Pickup_actor_action(food, 250, true));
+			}
+			npc->set_action(act);
+			state = walk_to_cleanup_food;
+			npc->start(gwin->get_std_delay(), 500 + rand()%1000);
+		} else {
+			state = walk_to_counter() ? wait_at_counter : get_customer;
+		}
+		break;
 	}
 }
 
@@ -3435,19 +3890,11 @@ void Waiter_schedule::notify_object_gone(Game_object *obj) {
 	if (obj == prep_table) {
 		prep_table = 0;
 	}
-	vector<Game_object *>::iterator it;
-	for (it = prep_tables.begin(); it != prep_tables.end(); ++it) {
-		if (*it == obj) {
-			prep_tables.erase(it);
-			break;
-		}
-	}
-	for (it = eating_tables.begin(); it != eating_tables.end(); ++it) {
-		if (*it == obj) {
-			eating_tables.erase(it);
-			break;
-		}
-	}
+	Remove_vec_obj(prep_tables, obj);
+	Remove_vec_obj(counters, obj);
+	Remove_vec_obj(eating_tables, obj);
+	Remove_vec_obj(unattended_plates, obj);
+	Schedule_with_objects::notify_object_gone(obj);
 }
 
 /*
@@ -4083,7 +4530,8 @@ void Bake_schedule::now_what() {
 			dough_in_oven = 0;
 			state = get_dough;
 		} else {
-			Actor_action *pact = Path_walking_actor_action::create_path(
+			delete pact;
+			pact = Path_walking_actor_action::create_path(
 			                         npcpos, displaytable->get_tile(), cost);
 			npc->set_action(new Sequence_actor_action(pact,
 			                new Face_pos_actor_action(displaytable->get_tile(), 250)));
@@ -4105,13 +4553,12 @@ void Bake_schedule::now_what() {
 			break;
 		}
 		clearing = true;
-		for (size_t i = 0; i < food.size(); i++) {
+		if (food.size()) {
 			delay = 500;
 			state = remove_food;
-			break;
-		}
-		if (!food.size())
+		} else {
 			state = display_wares;
+		}
 		break;
 	}
 	case remove_food: { // Delete food on display table one by one with a slight delay
@@ -4412,6 +4859,9 @@ void Forge_schedule::now_what(
 			                pact2,
 			                new Pickup_actor_action(blank, bpos, 250)));
 		} else {
+			// Don't leak the paths
+			delete pact;
+			delete pact2;
 			npc->set_action(new Sequence_actor_action(
 			                    new Pickup_actor_action(blank, 250),
 			                    new Pickup_actor_action(blank, bpos, 250)));
@@ -4580,6 +5030,9 @@ void Forge_schedule::now_what(
 			a[6] = 0;
 			npc->set_action(new Sequence_actor_action(a));
 		} else {
+			// Don't leak the paths
+			delete pact;
+			delete pact2;
 			// no path found, just pick up sword blank
 			npc->set_action(new Sequence_actor_action(
 			                    new Pickup_actor_action(blank, 250),

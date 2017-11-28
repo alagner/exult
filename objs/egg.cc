@@ -269,6 +269,14 @@ public:
 	virtual const char *get_str1() {
 		return fun_name.c_str();
 	}
+	virtual int get_usecode() const {
+	    return fun;
+	}
+	virtual bool set_usecode(int funid, const char *nm = 0) {
+	    fun = funid;
+		fun_name = nm;
+		return true;
+	}
 	virtual void hatch_now(Game_object *obj, bool must) {
 		ignore_unused_variable_warning(obj);
 		if (!fun && !fun_name.empty())
@@ -995,6 +1003,8 @@ void Egg_object::update_from_studio(
 	echunk->remove_egg(egg);    // Got to add it back.
 	echunk->add_egg(egg);
 	cout << "Egg updated" << endl;
+#else
+	ignore_unused_variable_warning(data, datalen);
 #endif
 }
 
@@ -1099,8 +1109,7 @@ void Egg_object::set_weather(
 		eman->add_effect(new Sparkle_effect(len, 0, egg));
 		break;
 	case 4:     // Fog.
-		// ++++ Disabling this.
-		//eman->add_effect(new Fog_effect(len, 0, egg));
+		eman->add_effect(new Fog_effect(len, 0, egg));
 		break;
 	case 5:     // Overcast.
 	case 6:     // Clouds.

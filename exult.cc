@@ -179,7 +179,7 @@ SDL_Joystick *sdl_joy;
 bool g_waiting_for_click = false;
 ShortcutBar_gump *g_shortcutBar = NULL;
 
-#if 0 && USECODE_DEBUGGER
+#ifdef USECODE_DEBUGGER
 bool    usecode_debugging = false;  // Do we enable the usecode debugger?
 extern void initialise_usecode_debugger(void);
 #endif
@@ -209,6 +209,7 @@ struct resolution {
 };
 int num_res = sizeof(res_list) / sizeof(struct resolution);
 int current_res = 0;
+int current_scaleval = 1;
 
 #ifdef XWIN
 #  ifdef __GNUC__
@@ -220,7 +221,9 @@ int xfd = 0;            // X connection #.
 static inline int WrappedConnectionNumber(Display *display) {
 	return ConnectionNumber(display);
 }
+#ifdef USE_EXULTSTUDIO
 static class Xdnd *xdnd = 0;
+#endif
 
 #  ifdef __GNUC__
 #  pragma GCC diagnostic pop
@@ -240,6 +243,7 @@ static void Init();
 static int Play();
 static int Get_click(int &x, int &y, char *chr, bool drag_ok, Paintable *p, bool rotate_colors = false);
 static int find_resolution(int w, int h, int s);
+static void set_scaleval(int new_scaleval);
 #ifdef USE_EXULTSTUDIO
 static void Move_dragged_shape(int shape, int frame, int x, int y,
                                int prevx, int prevy, bool show);
@@ -264,6 +268,7 @@ static bool run_bg = false;     // skip menu and run bg
 static bool run_si = false;     // skip menu and run si
 static bool run_fov = false;        // skip menu and run fov
 static bool run_ss = false;     // skip menu and run ss
+static bool run_sib = false;        // skip menu and run sib
 static string arg_gamename = "default"; // cmdline arguments
 static string arg_modname = "default";  // cmdline arguments
 static string arg_configfile = "";
@@ -328,6 +333,7 @@ int main(
 	parameters.declare("--si", &run_si, true);
 	parameters.declare("--fov", &run_fov, true);
 	parameters.declare("--ss", &run_ss, true);
+	parameters.declare("--sib", &run_sib, true);
 	parameters.declare("--nomenu", &arg_nomenu, true);
 	parameters.declare("-v", &showversion, true);
 	parameters.declare("--version", &showversion, true);
@@ -356,7 +362,7 @@ int main(
 
 	if (needhelp) {
 		cerr << "Usage: exult [--help|-h] [-v|--version] [-c configfile]" << endl
-		     << "             [--bg|--fov|--si|--ss|--game <game>] [--mod <mod>]" << endl
+		     << "             [--bg|--fov|--si|--ss|--sib|--game <game>] [--mod <mod>]" << endl
 		     << "             [--nomenu] [--buildmap 0|1|2] [--mapnum <num>]" << endl
 		     << "             [--nocrc] [--edit] [--write-xml] [--reset-video]" << endl
 		     << "--help\t\tShow this information" << endl
@@ -366,14 +372,15 @@ int main(
 		     << "--fov\t\tSkip menu and run Black Gate with Forge of Virtue expansion" << endl
 		     << "--si\t\tSkip menu and run Serpent Isle (prefers original game)" << endl
 		     << "--ss\t\tSkip menu and run Serpent Isle with Silver Seed expansion" << endl
+		     << "--sib\t\tSkip menu and run Serpent Isle Beta" << endl
 		     << "--nomenu\tSkip BG/SI game menu" << endl
 		     << "--game <game>\tRun original game" << endl
-		     << "--mod <mod>\tMust be used together with '--bg', '--fov', '--si', '--ss' or" << endl
+		     << "--mod <mod>\tMust be used together with '--bg', '--fov', '--si', '--ss', '--sib' or" << endl
 		     << "\t\t'--game <game>'; runs the specified game using the mod with" << endl
 		     << "\t\ttitle equal to '<mod>'" << endl
 		     << "--buildmap <N>\tCreate a fullsize map of the game world in u7map??.pcx" << endl
 		     << "\t\t(N=0: all roofs, 1: no level 2 roofs, 2: no roofs)" << endl
-		     << "\t\tOnly valid if used together with '--bg', '--fov', '--si', '--ss'" << endl
+		     << "\t\tOnly valid if used together with '--bg', '--fov', '--si', '--ss', '--sib'" << endl
 		     << "\t\tor '--game <game>'; you may optionally specify a mod with" << endl
 		     << "\t\t'--mod <mod>' (WARNING: requires big amounts of RAM, HD" << endl
 		     << "\t\tspace and time!)" << endl
@@ -393,13 +400,14 @@ int main(
 	                     + static_cast<unsigned>(run_si)
 	                     + static_cast<unsigned>(run_fov)
 	                     + static_cast<unsigned>(run_ss)
+	                     + static_cast<unsigned>(run_sib)
 	                     + static_cast<unsigned>(arg_gamename != "default");
 	if (gameparam > 1) {
-		cerr << "Error: You may only specify one of --bg, --fov, --si, --ss or --game!" <<
+		cerr << "Error: You may only specify one of --bg, --fov, --si, --ss, --sib or --game!" <<
 		     endl;
 		exit(1);
 	} else if (arg_buildmap >= 0 && gameparam == 0) {
-		cerr << "Error: --buildmap requires one of --bg, --fov, --si, --ss or --game!" <<
+		cerr << "Error: --buildmap requires one of --bg, --fov, --si, --ss, --sib or --game!" <<
 		     endl;
 		exit(1);
 	}
@@ -719,7 +727,7 @@ int exult_main(const char *runpath) {
 	config->value("config/disk/save_compression_level", save_compression, 1);
 	if (save_compression < 0 || save_compression > 2) save_compression = 1;
 	config->set("config/disk/save_compression_level", save_compression, false);
-#if 0 && USECODE_DEBUGGER
+#ifdef USECODE_DEBUGGER
 	// Enable usecode debugger
 	config->value("config/debug/debugger/enable", usecode_debugging);
 	initialise_usecode_debugger();
@@ -988,6 +996,10 @@ static void Init(
 			basegame = gamemanager->get_ss();
 			arg_gamename = CFG_SS_NAME;
 			run_ss = false;
+		} else if (run_sib) {
+			basegame = gamemanager->get_sib();
+			arg_gamename = CFG_SIB_NAME;
+			run_sib = false;
 		}
 		BaseGameInfo *newgame = 0;
 		if (basegame || arg_gamename != "default") {
@@ -1031,7 +1043,7 @@ static void Init(
 			midi = audio->get_midi();
 		}
 
-		Setup_text(GAME_SI, Game::has_expansion());
+		Setup_text(GAME_SI, Game::has_expansion(), GAME_SIB);
 
 		// Skip splash screen?
 		bool skip_splash;
@@ -2219,20 +2231,62 @@ int find_resolution(int w, int h, int s) {
 	return res;
 }
 
+void increase_scaleval() {
+	if (!cheat()) return;
+
+	current_scaleval++;
+	if (current_scaleval >= 9)
+		current_scaleval = 1;
+	set_scaleval(current_scaleval);
+}
+
+void decrease_scaleval() {
+	if (!cheat()) return;
+
+	current_scaleval--;
+	if (current_scaleval < 1)
+		current_scaleval = 8;
+	set_scaleval(current_scaleval);
+}
+
+void set_scaleval(int new_scaleval) {
+	int scaler = gwin->get_win()->get_scaler();
+	bool fullscreen = gwin->get_win()->is_fullscreen();
+	if (new_scaleval >= 1 && !fullscreen && scaler == Image_window::point && cheat.in_map_editor()) {
+		current_scaleval = new_scaleval;
+		bool share_settings;
+		config->value("config/video/share_video_settings", share_settings, true);
+		const string &vidStr = (fullscreen || share_settings) ?
+		                       "config/video" : "config/video/window";
+		int resx, resy;
+		config->value(vidStr + "/display/width", resx);
+		config->value(vidStr + "/display/height", resy);
+
+		// for Studio zooming we set game area to auto, fill quality to point, 
+		// fill mode to fill and increase/decrease the scale value
+		gwin->resized(resx,
+		              resy,
+		              fullscreen,
+		              0, 0,
+		              current_scaleval, scaler,
+		              Image_window::Fill,
+		              Image_window::point);
+	}
+}
+
 void make_screenshot(bool silent) {
 	// TODO: Maybe use <SAVEGAME>/exult%03i.pcx instead.
 	// Or maybe some form or "My Pictures" on Windows.
-	string homepath = get_system_path("<HOME>") + "/exult%03i.pcx";
-	char *fn = new char[homepath.size() + 10];
-	int i;
-	FILE *f;
+	string homepath = get_system_path("<HOME>");
+	size_t strsize = homepath.size() + 20;
+	char *fn = new char[strsize];
 	bool namefound = false;
 	Effects_manager *eman = gwin->get_effects();
 
 	// look for the next available exult???.pcx file
-	for (i = 0; i < 1000 && !namefound; i++) {
-		snprintf(fn, homepath.size() + 10, homepath.c_str(), i);
-		f = fopen(fn, "rb");
+	for (int i = 0; i < 1000 && !namefound; i++) {
+		snprintf(fn, strsize, "%s/exult%03i.pcx", homepath.c_str(), i);
+		FILE *f = fopen(fn, "rb");
 		if (f) {
 			fclose(f);
 		} else {
@@ -2325,7 +2379,7 @@ void BuildGameMap(BaseGameInfo *game, int mapnum) {
 			for (int y = 0; y < c_num_chunks / c_chunks_per_schunk; y++) {
 				gwin->paint_map_at_tile(0, 0, w, h, x * c_tiles_per_schunk, y * c_tiles_per_schunk, maplift);
 				char fn[15];
-				snprintf(fn, 15, "u7map%x%x.pcx", x, y);
+				snprintf(fn, 15, "u7map%02x.pcx", (12*y)+x);
 				SDL_RWops *dst = SDL_RWFromFile(fn, "wb");
 				cerr << x << "," << y << ": ";
 				gwin->get_win()->screenshot(dst);

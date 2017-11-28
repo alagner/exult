@@ -784,7 +784,7 @@ time_t Shape_chooser::export_tiled_png(
 			char buf[250];
 			snprintf(buf, sizeof(buf), "Can only tile %dx%d flat shapes",
 			         c_tilesize, c_tilesize);
-			Alert(buf);
+			Alert("%s", buf);
 			return 0;
 		}
 		int x, y;
@@ -1246,6 +1246,7 @@ void Shape_chooser::export_all_pngs(
 			yoff = -frame->get_ybelow();
 		}
 		export_png(fullname, img, xoff, yoff);
+		delete [] fullname;
 	}
 }
 
@@ -1280,22 +1281,27 @@ void Shape_chooser::import_all_pngs(
 	sprintf(fullname, "%s%02d.png", fname, 0);
 	if (!U7exists(fullname)) {
 		std::cerr << "Invalid base file name for import of all frames!" << std::endl;
+		delete [] fullname;
 		return;
 	}
 	int i = 0;
 	unsigned char pal[3 * 256]; // Get current palette.
 	Get_rgb_palette(palette, pal);
 	Shape *shape = ifile->extract_shape(shnum);
-	if (!shape)
+	if (!shape) {
+		delete [] fullname;
 		return;
+	}
 	ExultStudio *studio = ExultStudio::get_instance();
 	while (U7exists(fullname)) {
 		int w, h, rowsize, xoff, yoff, palsize;
 		unsigned char *pixels, *oldpal;
 		// Import, with 255 = transp. index.
 		if (!Import_png8(fullname, 255, w, h, rowsize, xoff, yoff,
-		                 pixels, oldpal, palsize))
+		                 pixels, oldpal, palsize)) {
+			delete [] fullname;
 			return;         // Just return if error, for now.
+		}
 		// Convert to game palette.
 		Convert_indexed_image(pixels, h * rowsize, oldpal, palsize, pal);
 		delete [] oldpal;
@@ -1309,14 +1315,13 @@ void Shape_chooser::import_all_pngs(
 		delete [] pixels;
 
 		i++;
-		delete [] fullname;
-		fullname = new char[strlen(fname) + 30];
 		sprintf(fullname, "%s%02d.png", fname, i);
 	}
 	render();
 	show();
 	file_info->set_modified();
 	studio->update_group_windows(0);
+	delete [] fullname;
 }
 
 void Shape_chooser::import_all_frames(

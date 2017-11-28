@@ -1,9 +1,12 @@
-#	Exult 1.5.0svn text message file.	Written by ExultStudio.
+#	Exult 1.5.0git text message file.	Written by ExultStudio.
 %%section version
 :7
 %%endsection
 %%section usecode_events
 :1128/1
+%%endsection
+%%section lightweight_object
+:1132/0
 %%endsection
 %%section framenames
 :1102/1/-1/0/270
@@ -21,4 +24,15 @@
 %%endsection
 %%section altready
 :1130/1/12
+:1132/2/-1
+%%endsection
+%%section on_fire
+:1115/1
+:1116/1
+:1117/1
+:1123/1
+:1132/1
+%%endsection
+%%section extradimensional_storage
+:1132/1
 %%endsection

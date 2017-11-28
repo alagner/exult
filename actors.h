@@ -296,12 +296,12 @@ public:
 	int get_usecode() const {
 		return usecode == -1 ? Game_object::get_usecode() : usecode;
 	}
-	void set_usecode(int funid, const char *nm = 0) {
+	virtual bool set_usecode(int funid, const char *nm = 0) {
 		if (funid < 0) {
 			usecode_assigned = false;
 			usecode_name.clear();
 			usecode = -1;
-			return;
+			return true;
 		}
 		if (nm)
 			usecode_name = nm;
@@ -309,6 +309,7 @@ public:
 			usecode_name.clear();
 		usecode = funid;
 		usecode_assigned = true;
+		return true;
 	}
 	Schedule *get_schedule() const {
 		return schedule;
@@ -598,11 +599,7 @@ public:
 	virtual int add_readied(Game_object *obj, int index,
 	                        int dont_check = 0, int force_pos = 0, bool noset = false);
 	virtual int find_readied(Game_object *obj);
-	virtual Game_object *get_readied(int index) const {
-		return index >= 0 &&
-		       index < static_cast<int>(sizeof(spots) / sizeof(spots[0])) ?
-		       spots[index] : 0;
-	}
+	virtual Game_object *get_readied(int index) const;
 	virtual void call_readied_usecode(int index,
 	                                  Game_object *obj, int eventid);
 	virtual int get_max_weight();   // Get max. weight allowed.

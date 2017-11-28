@@ -858,8 +858,6 @@ Shape_frame *Shape::read(
 		std::cerr << "Shape num out of range: " << shapenum << std::endl;
 		return 0;
 	}
-	if (!shapelen)
-		return 0;       // Empty shape.
 	// Read it in and get frame count.
 	Shape_frame *frame = new Shape_frame();
 	int nframes = frame->read(shp, shapeoff, shapelen, framenum);
@@ -1212,7 +1210,7 @@ DataSource *Vga_file::U7load(
 		}
 	} else {
 		// It is a resource.
-		U7object vgaobj(File_spec(resource.first), resource.second);
+		U7object vgaobj(resource.first, resource.second);
 		std::size_t len;
 		char *buf = vgaobj.retrieve(len);
 		if (!buf || !len) {

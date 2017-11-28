@@ -66,8 +66,6 @@
 #define PATCH_U7MAP "<PATCH>/u7map"
 #define TEXT_FLX    "<STATIC>/text.flx"
 #define PATCH_TEXT  "<PATCH>/text.flx"
-#define EXULTMSG    "<DATA>/exultmsg.txt"
-#define BUNDLE_EXULTMSG "<BUNDLE>/exultmsg.txt"
 #define PATCH_EXULTMSG "<PATCH>/exultmsg.txt"
 #define U7IFIX      "<STATIC>/u7ifix"
 #define PATCH_U7IFIX    "<PATCH>/u7ifix"
@@ -179,6 +177,7 @@
 #endif
 
 #define AUTONOTES   "autonotes.txt"
+#define PATCH_AUTONOTES "<PATCH>/autonotes.txt"
 
 #define PATCH_KEYS  "<PATCH>/patchkeys.txt"
 
@@ -191,12 +190,14 @@
 #define CFG_FOV_NAME    "forgeofvirtue"
 #define CFG_SI_NAME     "serpentisle"
 #define CFG_SS_NAME     "silverseed"
+#define CFG_SIB_NAME    "serpentbeta"
 
 // U7 game titles in "exult.cfg":
 #define CFG_BG_TITLE    "ULTIMA VII\nTHE BLACK GATE"
 #define CFG_FOV_TITLE   "ULTIMA VII\nTHE FORGE OF VIRTUE"
 #define CFG_SI_TITLE    "ULTIMA VII PART 2\nSERPENT ISLE"
 #define CFG_SS_TITLE    "ULTIMA VII PART 2\nTHE SILVER SEED"
+#define CFG_SIB_TITLE   "ULTIMA VII PART 2\nSERPENT ISLE BETA"
 
 // Exult SFX Packages:
 #define SFX_ROLAND_BG   "sqsfxbg.flx"

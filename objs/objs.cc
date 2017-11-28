@@ -131,7 +131,7 @@ int Game_object::get_map_num() const { // Get map number this is in.
 Tile_coord Game_object::get_tile(
 ) const {
 	if (!chunk) {
-#if DEBUG
+#ifdef DEBUG
 		cout << "Asking tile for obj. " << get_shapenum()
 		     << " not on map" << endl;
 #endif
@@ -149,7 +149,7 @@ Tile_coord Game_object::get_tile(
 Tile_coord Game_object::get_center_tile(
 ) const {
 	if (!chunk) {
-#if DEBUG
+#ifdef DEBUG
 		cout << "Asking center tile for obj. " << get_shapenum()
 		     << " not on map" << endl;
 #endif
@@ -170,7 +170,7 @@ Tile_coord Game_object::get_missile_tile(
 ) const {
 	ignore_unused_variable_warning(dir);
 	if (!chunk) {
-#if DEBUG
+#ifdef DEBUG
 		cout << "Asking missile tile for obj. " << get_shapenum()
 		     << " not on map" << endl;
 #endif
@@ -1095,6 +1095,8 @@ void Game_object::update_from_studio(
 		// Don't skip this even if coords. are the same, since
 		//   it will mark the chunk as modified.
 		obj->move(tx, ty, tz);
+#else
+	ignore_unused_variable_warning(data, datalen);
 #endif
 }
 
@@ -1176,7 +1178,15 @@ int Game_object::get_max_weight(
 ) {
 	// Looking outwards for NPC.
 	Container_game_object *own = get_owner();
-	return own ? own->get_max_weight() : 0;
+	if (!own) {
+		return 0;
+	}
+	Shape_info &info = own->get_info();
+	if (!info.has_extradimensional_storage()) {
+		return own->get_max_weight();
+	}
+
+	return 0;
 }
 
 /*
@@ -1636,6 +1646,14 @@ Game_object *Game_object::attacked(
 	}
 	return this;
 }
+
+/*
+ *  Can't set usecode.
+ */
+bool Game_object::set_usecode(int, const char *) {
+	return false;
+}
+
 
 /*
  *  Move to a new absolute location.  This should work even if the old

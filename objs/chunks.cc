@@ -560,10 +560,7 @@ int Chunk_cache::is_blocked(
 			else
 				return 1;
 		} else if (ter & 4) { // Blocked
-			if (move_flags & MOVE_FLY)
-				return 0;
-			else
-				return 1;
+			return 1;
 		} else  // Other
 			return 0;
 	} else if (move_flags & (MOVE_FLY | MOVE_WALK))
@@ -1102,6 +1099,8 @@ inline bool Check_spot(
 	Game_map *gmap = Game_window::get_instance()->get_map();
 	int cx = tx / c_tiles_per_chunk, cy = ty / c_tiles_per_chunk;
 	Map_chunk *chunk = gmap->get_chunk_safely(cx, cy);
+	if (!chunk)
+		return false;
 	return (where == Map_chunk::inside) ==
 	       (chunk->is_roof(tx % c_tiles_per_chunk,
 	                       ty % c_tiles_per_chunk, tz) < 31);

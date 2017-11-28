@@ -642,7 +642,7 @@ int If_else_path_actor_action::handle_event(
 		// Didn't get there.
 		if (failure) {
 			failed = true;
-#if DEBUG
+#ifdef DEBUG
 			cout << "Executing 'failure' path usecode" << endl;
 #endif
 			delay = failure->handle_event_safely(actor, del);
@@ -855,14 +855,15 @@ int Object_animate_actor_action::handle_event(
 /**
  *  Pick up/put down an object.
  */
-Pickup_actor_action::Pickup_actor_action(Game_object *o, int spd)
+Pickup_actor_action::Pickup_actor_action(Game_object *o, int spd,
+													bool del)
 	: obj(o), pickup(1), speed(spd), cnt(0),
-	  objpos(obj->get_tile()), dir(0) {
+	  objpos(obj->get_tile()), dir(0), temp(false), to_del(del) {
 }
 // To put down an object:
 Pickup_actor_action::Pickup_actor_action(Game_object *o, Tile_coord const &opos,
         int spd, bool t)
-	: obj(o), pickup(0), speed(spd), cnt(0), objpos(opos), dir(0), temp(t) {
+	: obj(o), pickup(0), speed(spd), cnt(0), objpos(opos), dir(0), temp(t), to_del(false) {
 }
 
 /**
@@ -894,8 +895,12 @@ int Pickup_actor_action::handle_event(
 				break;
 			}
 			gwin->add_dirty(obj);
-			obj->remove_this(1);
-			actor->add(obj, true);
+			if (to_del) {
+				obj->remove_this();		// Delete it.
+			} else {
+				obj->remove_this(1);
+				actor->add(obj, true);
+			}
 		} else {
 			obj->remove_this(1);
 			obj->move(objpos);

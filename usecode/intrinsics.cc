@@ -5,7 +5,7 @@
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
  *  (at your option) any later version.
- *
+ *\
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -64,6 +64,7 @@
 #include "combat.h"
 #include "ready.h"
 #include "ignore_unused_variable_warning.h"
+#include "array_size.h"
 
 #ifndef UNDER_EMBEDDED_CE
 using std::cerr;
@@ -78,7 +79,7 @@ extern Usecode_value no_ret;
 static Game_object *sailor = 0;     // The current barge captain.  Maybe
 //   this needs to be saved/restored.
 
-#define PARTY_MAX (sizeof(party)/sizeof(party[0]))
+#define PARTY_MAX (array_size(party))
 
 #define USECODE_INTRINSIC(NAME) Usecode_value   Usecode_internal:: UI_## NAME (int num_parms,Usecode_value parms[12])
 
@@ -108,7 +109,7 @@ USECODE_INTRINSIC(execute_usecode_array) {
 	ignore_unused_variable_warning(num_parms);
 	COUT("Executing intrinsic 1");
 	// Start on next tick.
-	create_script(parms[0], parms[1], 1);
+	create_script(parms[0], parms[1], gwin->get_std_delay());
 
 	Usecode_value u(1);
 	return(u);
@@ -1757,7 +1758,7 @@ USECODE_INTRINSIC(earthquake) {
 	ignore_unused_variable_warning(num_parms);
 	int len = parms[0].get_int_value();
 	gwin->get_tqueue()->add(Game::get_ticks() + 10,
-	                        new Earthquake(len), reinterpret_cast<long>(this));
+	                        new Earthquake(len), reinterpret_cast<uintptr>(this));
 	return(no_ret);
 }
 
@@ -1772,7 +1773,7 @@ static inline void Armageddon_death(Actor *npc, bool barks, Rectangle const &scr
 	// Leave a select few alive (like LB, Batlin).
 	if (npc && !npc->is_dead() && !npc->get_info().survives_armageddon()) {
 		const char *text[] = {"Aiiiieee!", "Noooo!", "#!?*#%!"};
-		const int numtext = sizeof(text) / sizeof(text[0]);
+		const int numtext = array_size(text);
 		Tile_coord loc = npc->get_tile();
 		if (barks && screen.has_world_point(loc.tx, loc.ty))
 			npc->say(text[rand() % numtext]);
@@ -2342,6 +2343,13 @@ USECODE_INTRINSIC(call_guards) {
 	return no_ret;
 }
 
+USECODE_INTRINSIC(stop_arresting) {
+	ignore_unused_variable_warning(num_parms, parms);
+	// Seems to be what it does.
+	gwin->stop_arresting();
+	return no_ret;
+}
+
 USECODE_INTRINSIC(attack_avatar) {
 	ignore_unused_variable_warning(num_parms, parms);
 	// Attack thieving Avatar.
@@ -2522,6 +2530,7 @@ USECODE_INTRINSIC(set_item_flag) {
 		break;
 	case 0x14:          // The sailor (Ferryman).
 		sailor = obj;
+		break;
 	default:
 		obj->set_flag(flag);
 		if (Is_moving_barge_flag(flag)) {
@@ -2765,6 +2774,14 @@ USECODE_INTRINSIC(change_npc_face1) {
 	return no_ret;
 }
 
+USECODE_INTRINSIC(reset_conv_face) {
+	// Seems to be right.
+	ignore_unused_variable_warning(num_parms, parms);
+	show_pending_text();
+	conv->change_face_frame(0, 0);
+	return no_ret;
+}
+
 USECODE_INTRINSIC(set_conversation_slot) {
 	ignore_unused_variable_warning(num_parms);
 	// set_conversation_slot(0 or 1) - Choose which face is talking.
@@ -2788,13 +2805,20 @@ USECODE_INTRINSIC(end_conversation) {
 
 USECODE_INTRINSIC(si_path_run_usecode) {
 	ignore_unused_variable_warning(num_parms);
-	// exec(npc, loc(x,y,z)?, eventid, itemref, usecode#, ??true/false).
+	// exec(npc, loc(x,y,z), eventid, itemref, usecode#, flag_always).
 	// Schedule Npc to walk to loc and then execute usecode.
-	// Guessing:
 	int always = parms[5].get_int_value();
 	path_run_usecode(parms[0], parms[1], parms[4], parms[3], parms[2], 1,
 	                 always != 0);
 	return no_ret;
+}
+
+USECODE_INTRINSIC(sib_path_run_usecode) {
+	ignore_unused_variable_warning(num_parms);
+	// exec(npc, loc(x,y,z), usecode#, itemref, eventid).
+	// Schedule Npc to walk to loc and then execute usecode.
+	return Usecode_value(path_run_usecode(parms[0], parms[1], parms[2],
+	                                      parms[3], parms[4], 0, false));
 }
 
 USECODE_INTRINSIC(error_message) {
@@ -2998,6 +3022,7 @@ USECODE_INTRINSIC(add_removed_npc) {
 		tx = (sx + i) % c_tiles_per_chunk;
 
 		Map_chunk *clist = gmap->get_chunk_safely(cx, cy);
+		if (!clist) continue;
 		clist->setup_cache();
 		if (!clist->is_blocked(height, 0, tx, ty, nlift, actor->get_type_flags(), 1)) {
 			Tile_coord cur(tx + cx * c_tiles_per_chunk, ty + cy * c_tiles_per_chunk, nlift);
@@ -3017,6 +3042,7 @@ USECODE_INTRINSIC(add_removed_npc) {
 		ty = (sy + i) % c_tiles_per_chunk;
 
 		Map_chunk *clist = gmap->get_chunk_safely(cx, cy);
+		if (!clist) continue;
 		clist->setup_cache();
 		if (!clist->is_blocked(height, 0, tx, ty, nlift, actor->get_type_flags(), 1)) {
 			Tile_coord cur(tx + cx * c_tiles_per_chunk, ty + cy * c_tiles_per_chunk, nlift);
@@ -3036,6 +3062,7 @@ USECODE_INTRINSIC(add_removed_npc) {
 		tx = (ex - i) % c_tiles_per_chunk;
 
 		Map_chunk *clist = gmap->get_chunk_safely(cx, cy);
+		if (!clist) continue;
 		clist->setup_cache();
 		if (!clist->is_blocked(height, 0, tx, ty, nlift, actor->get_type_flags(), 1)) {
 			Tile_coord cur(tx + cx * c_tiles_per_chunk, ty + cy * c_tiles_per_chunk, nlift);
@@ -3055,6 +3082,7 @@ USECODE_INTRINSIC(add_removed_npc) {
 		ty = (ey - i) % c_tiles_per_chunk;
 
 		Map_chunk *clist = gmap->get_chunk_safely(cx, cy);
+		if (!clist) continue;
 		clist->setup_cache();
 		if (!clist->is_blocked(height, 0, tx, ty, nlift, actor->get_type_flags(), 1)) {
 			Tile_coord cur(tx + cx * c_tiles_per_chunk, ty + cy * c_tiles_per_chunk, nlift);
@@ -3291,6 +3319,7 @@ USECODE_INTRINSIC(printf) {
 				else
 					p.print(cout);
 				spec += 2;
+				i++;
 			} else {
 				cout << '%';
 				spec++;
@@ -3322,15 +3351,12 @@ USECODE_INTRINSIC(get_usecode_fun) {
 
 USECODE_INTRINSIC(set_usecode_fun) {
 	ignore_unused_variable_warning(num_parms);
-	Actor *npc = as_actor(get_item(parms[0]));
-	if (!npc)
+	Game_object *obj = get_item(parms[0]);
+	if (!obj)
 		return (no_ret);
 	int usefun = parms[1].get_int_value();
 	Usecode_symbol *ucsym = symtbl ? (*symtbl)[usefun] : 0;
-	if (!ucsym)
-		npc->set_usecode(usefun);
-	else
-		npc->set_usecode(usefun, ucsym->get_name());
+	obj->set_usecode(usefun, ucsym ? ucsym->get_name() : 0);
 	return (no_ret);
 }
 
@@ -3356,6 +3382,22 @@ USECODE_INTRINSIC(is_dest_reachable) {
 	return ret;
 }
 
+USECODE_INTRINSIC(sib_is_dest_reachable) {
+	// Note: this function did  not work in SI Beta. This implementation is
+	// based on what usecode expects.
+	ignore_unused_variable_warning(num_parms);
+	Usecode_value ret(0);
+	Actor *npc = as_actor(get_item(parms[1]));
+	if (!npc || parms[0].get_array_size() < 2)
+		return ret;
+	Tile_coord dest = Tile_coord(parms[0].get_elem(0).get_int_value(),
+	                             parms[0].get_elem(1).get_int_value(),
+	                             parms[0].get_array_size() == 2 ? 0 :
+	                             parms[0].get_elem(2).get_int_value());
+	ret = Usecode_value(is_dest_reachable(npc, dest));
+	return ret;
+}
+
 USECODE_INTRINSIC(can_avatar_reach_pos) {
 	ignore_unused_variable_warning(num_parms);
 	Usecode_value ret(0);
@@ -3376,7 +3418,7 @@ USECODE_INTRINSIC(create_barge_object) {
 
 	Barge_object *b = new Barge_object(961, 0, 0, 0, 0,
 	                                   parms[0].get_int_value(), parms[1].get_int_value(),
-	                                   num_parms >= 2 ? ((parms[2].get_int_value() >> 1) & 3) : 0);
+	                                   num_parms >= 3 ? ((parms[2].get_int_value() >> 1) & 3) : 0);
 
 	b->set_invalid();       // Not in world yet.
 	b->set_flag(Obj_flags::okay_to_take);

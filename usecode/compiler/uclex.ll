@@ -2,6 +2,7 @@
 #ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wold-style-cast"
+#pragma GCC diagnostic ignored "-Wsign-compare"
 #endif  // __GNUC__
 }
 
@@ -169,9 +170,11 @@ static void Set_game
 		Uc_function::set_intrinsic_type(Uc_function::bg);
 	else if (strcmp(name, "serpentisle") == 0)
 		Uc_function::set_intrinsic_type(Uc_function::si);
+	else if (strcmp(name, "serpentbeta") == 0)
+		Uc_function::set_intrinsic_type(Uc_function::sib);
 	else
 		Uc_location::yyerror(
-			"Specify \"blackgate\" or \"serpentisle\" "
+			"Specify \"blackgate\", \"serpentisle\" or \"serpentbeta\" "
 				"with #game.");
 	}
 
@@ -245,13 +248,13 @@ char *Handle_string
 #ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wold-style-cast"
+#pragma GCC diagnostic ignored "-Wsign-compare"
 #if !defined(__llvm__) && !defined(__clang__)
 #pragma GCC diagnostic ignored "-Wuseless-cast"
 #else
 #pragma GCC diagnostic ignored "-Wunneeded-internal-declaration"
 #endif
 #endif  // __GNUC__
-#define register
 
 %}
 
@@ -317,7 +320,10 @@ event		return EVENT;
 gflags		return FLAG;
 item		return ITEM;
 goto		return GOTO;
+try			return TRY;
+catch		return CATCH;
 abort		return ABORT;
+throw		return THROW;
 ".original"	return ORIGINAL;
 <fun_id>{
 "shape#"	return SHAPENUM;

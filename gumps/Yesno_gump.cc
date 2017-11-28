@@ -67,7 +67,7 @@ bool Yesno_button::activate(
     int button
 ) {
 	if (button != 1) return false;
-	reinterpret_cast<Yesno_gump *>(parent)->set_answer(isyes);
+	static_cast<Yesno_gump *>(parent)->set_answer(isyes);
 	return true;
 }
 
@@ -185,7 +185,7 @@ bool Countdown_gump::run() {
 	if (remaining <= 0)  set_answer(0);
 
 	char *new_text = new char[text_fmt.size() + 32];
-	snprintf(new_text, text_fmt.size() + 31, text_fmt.c_str(), remaining / 1000);
+	snprintf(new_text, text_fmt.size() + 31, "%s %i...", text_fmt.c_str(), remaining / 1000);
 	new_text[text_fmt.size() + 31] = 0;
 	text = new_text;
 	delete [] new_text;

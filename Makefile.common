@@ -66,14 +66,24 @@ TIMIDITY_OBJS=\
 	audio/midi_drivers/timidity/timidity_tables.o
 
 MT32EMU_OBJS=\
-	audio/midi_drivers/mt32emu/freeverb.o \
-	audio/midi_drivers/mt32emu/i386.o \
-	audio/midi_drivers/mt32emu/mt32_file.o \
-	audio/midi_drivers/mt32emu/part.o \
-	audio/midi_drivers/mt32emu/partial.o \
-	audio/midi_drivers/mt32emu/partialManager.o \
-	audio/midi_drivers/mt32emu/synth.o \
-	audio/midi_drivers/mt32emu/tables.o
+	files/sha1/sha1.o \
+	audio/midi_drivers/mt32emu/Analog.o \
+	audio/midi_drivers/mt32emu/BReverbModel.o \
+	audio/midi_drivers/mt32emu/File.o \
+	audio/midi_drivers/mt32emu/FileStream.o \
+	audio/midi_drivers/mt32emu/LA32Ramp.o \
+	audio/midi_drivers/mt32emu/LA32WaveGenerator.o \
+	audio/midi_drivers/mt32emu/MidiStreamParser.o \
+	audio/midi_drivers/mt32emu/Part.o \
+	audio/midi_drivers/mt32emu/Partial.o \
+	audio/midi_drivers/mt32emu/PartialManager.o \
+	audio/midi_drivers/mt32emu/Poly.o \
+	audio/midi_drivers/mt32emu/ROMInfo.o \
+	audio/midi_drivers/mt32emu/Synth.o \
+	audio/midi_drivers/mt32emu/Tables.o \
+	audio/midi_drivers/mt32emu/TVA.o \
+	audio/midi_drivers/mt32emu/TVF.o \
+	audio/midi_drivers/mt32emu/TVP.o
 
 # Note we now always compile all midi drivers
 MIDI_DRV_OBJS=\
@@ -406,6 +416,7 @@ EXULT_BG_PAPERDOL_VGA_OBJECTS = \
 	data/bg/love_arrows.shp \
 	data/bg/magebane.shp \
 	data/bg/shieldbacks.shp \
+	data/bg/diaper.shp \
 	data/bg/bg_paperdol.in
 
 EXULT_BG_MR_FACES_VGA = data/bg/bg_mr_faces.vga data/bg/bg_mr_faces_vga.h
@@ -420,7 +431,7 @@ BG_MR_FACES = $(EXULT_BG_MR_FACES_VGA)
 
 all: $(EXEC)
 
-ucinternal.o : ucinternal.cc ucinternal.h bgintrinsics.h siintrinsics.h opcodes.h usefuns.h
+ucinternal.o : ucinternal.cc ucinternal.h bgintrinsics.h siintrinsics.h sibetaintrinsics.h opcodes.h usefuns.h
 
 # Generated flex dependencies...
 
@@ -457,6 +468,8 @@ gumps/VideoOptions_gump.o : gumps/VideoOptions_gump.cc $(EXULT_FLX)
 gamemgr/bggame.o : gamemgr/bggame.cc $(EXULT_BG_FLX)
 
 gamemgr/sigame.o : gamemgr/sigame.cc $(EXULT_SI_FLX)
+
+shapes/items.o : shapes/items.cc $(EXULT_BG_FLX) $(EXULT_SI_FLX)
 
 shapes/shapevga.o : shapes/shapevga.cc $(EXULT_BG_FLX) $(EXULT_SI_FLX)
 
@@ -547,7 +560,7 @@ u7voice2syx$(EXEEXT) : tools/u7voice2syx.o $(FILE_OBJS)
 	$(CXX) $(LDFLAGS) -o $(@) tools/u7voice2syx.o $(FILE_OBJS)
 
 
-wuc$(EXEEXT) : tools/wuc.o tools/uctools.h usecode/bgintrinsics.h usecode/siintrinsics.h
+wuc$(EXEEXT) : tools/wuc.o tools/uctools.h usecode/bgintrinsics.h usecode/siintrinsics.h usecode/sibetaintrinsics.h
 	$(CXX) $(LDFLAGS) -o $(@) tools/wuc.o
 
 UCC_OBJS=\
@@ -562,7 +575,7 @@ UCC_OBJS=\
 	usecode/compiler/ucsym.o \
 	usecode/compiler/ucclass.o
 
-ucc$(EXEEXT) : $(UCC_OBJS) files/utils.h usecode/bgintrinsics.h usecode/siintrinsics.h usecode/opcodes.h usecode/ucsymtbl.h
+ucc$(EXEEXT) : $(UCC_OBJS) files/utils.h usecode/bgintrinsics.h usecode/siintrinsics.h usecode/sibetaintrinsics.h usecode/opcodes.h usecode/ucsymtbl.h
 	$(CXX) $(LDFLAGS) -o $(@) $(UCC_OBJS) -liberty
 
 ucparse.cc: usecode/compiler/ucparse.yy
@@ -592,13 +605,13 @@ CONFREGRESS_OBJS=$(CONF_OBJS) conf/xmain.o files/utils.o
 confregress$(EXEEXT)  : $(CONFREGRESS_OBJS)
 	$(CXX) $(LDFLAGS) -o $(@) $(CONFREGRESS_OBJS)
 
-head2data.o : usecode/ucxt/head2data.cc usecode/bgintrinsics.h usecode/siintrinsics.h
+head2data.o : usecode/ucxt/head2data.cc usecode/bgintrinsics.h usecode/siintrinsics.h usecode/sibetaintrinsics.h
 
-head2data$(EXEEXT) : usecode/ucxt/head2data.o $(FILE_OBJS) usecode/bgintrinsics.h usecode/siintrinsics.h
+head2data$(EXEEXT) : usecode/ucxt/head2data.o $(FILE_OBJS) usecode/bgintrinsics.h usecode/siintrinsics.h usecode/sibetaintrinsics.h
 	$(CXX) $(LDFLAGS) -o $(@) usecode/ucxt/head2data.o $(FILE_OBJS)
 
 head2data.test: 
-	head2data data/u7bgintrinsics.data data/u7siintrinsics.data
+	head2data data/u7bgintrinsics.data data/u7siintrinsics.data data/u7sibetaintrinsics.data
 
 clean:
 	rm -f $(OBJS) tools/expack.o $(EXEC) expack$(EXEEXT) tools/ipack.o ipack$(EXEEXT) data/exult.flx data/exult_flx.h data/exult_bg.flx data/exult_bg_flx.h data/exult_si.flx data/exult_si_flx.h data/bg/bg_paperdol.vga data/bg/bg_mr_faces.vga data/bg/bg_paperdol_vga.h data/bg/bg_mr_faces_vga.h
@@ -625,4 +638,4 @@ toolsclean:
 	rm -f $(UCXT_OBJS) ucxt$(EXEEXT)
 	rm -f $(UCC_OBJS) ucc$(EXEEXT) ucparse.cc ucparse.h uclex.cc
 	rm -f $(CONFREGRESS_OBJS) confregress$(EXEEXT)
-	rm -f usecode/ucxt/head2data.o head2data$(EXEEXT) data/u7bgintrinsics.data data/u7siintrinsics.data
+	rm -f usecode/ucxt/head2data.o head2data$(EXEEXT) data/u7bgintrinsics.data data/u7siintrinsics.data data/u7sibetaintrinsics.data

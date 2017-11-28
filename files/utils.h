@@ -28,12 +28,21 @@
 #include <cstdio>
 #include <stdio.h>
 #include <iosfwd>
+#include <dirent.h>
 
 #include "common_types.h"
 #include "rect.h"
 
+#ifndef ATTR_PRINTF
+#ifdef __GNUC__
+#define ATTR_PRINTF(x,y) __attribute__((format(printf, (x), (y))))
+#else
+#define ATTR_PRINTF(x,y)
+#endif
+#endif
+
 #ifndef HAVE_SNPRINTF
-extern int snprintf(char *, size_t, const char *, /*args*/ ...);
+extern int snprintf(char *, size_t, const char *, /*args*/ ...) ATTR_PRINTF(3,4);
 #endif
 
 /*
@@ -553,6 +562,9 @@ bool U7open_static(
     std::ifstream &in,      // Input stream to open.
     const char *fname,      // May be converted to upper-case.
     bool is_text            // Should file be opened in text mode
+);
+DIR *U7opendir(
+    const char *fname			// May be converted to upper-case.
 );
 void U7remove(
     const char *fname

@@ -17,8 +17,15 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-void freeze object#() (){set_item_flag(DONT_MOVE);}
-void unfreeze object#() (){clear_item_flag(DONT_MOVE);}
+void freeze object#() ()
+{
+	set_item_flag(DONT_MOVE);
+}
+
+void unfreeze object#() ()
+{
+	clear_item_flag(DONT_MOVE);
+}
 
 void addShaminoToParty ()
 {
@@ -87,16 +94,6 @@ void askIoloBelongings ()
 			say("@If thou changest thy mind, thou hast but to return and ask again.@");
 		}
 	}
-}
-
-void setFurcapFlag object#() ()
-{
-	// We should only be here if the Avatar knew the furcap was
-	// Frigidazzi's and talked to her. If he gave the furcap back,
-	// gflags[KNOWS_FURCAP_OWNER] is false; in this case, we set
-	// the new flag to indicate the quest completion:
-	if (!gflags[KNOWS_FURCAP_OWNER])
-		gflags[GAVE_FURCAP_BACK] = true;
 }
 
 /*
@@ -198,9 +195,10 @@ void firesnakeExplode ()
 void dropAllItems (var npc, var pos)
 {
 	// Here, we drop only objects directly held by the character:
-	var spots = [OFF_HAND, WEAPON_HAND, CLOAK, NECK, HEAD, GLOVES,
-	             RIGHT_FINGER, LEFT_FINGER, EARRINGS, QUIVER, BELT,
-	             TORSO, FEET, LEGS, BACKPACK, BACK_SHIELD, BACK_SPOT];
+	var spots = [SI_OFF_HAND, SI_WEAPON_HAND, SI_CLOAK, SI_AMULET, SI_HEAD,
+	             SI_GLOVES, SI_RIGHT_RING, SI_LEFT_RING, SI_EARS, SI_QUIVER,
+	             SI_BELT, SI_TORSO, SI_FEET, SI_LEGS, SI_BACKPACK,
+	             SI_BACK_SHIELD, SI_BACK_2H];
 
 	for (spot in spots)
 	{

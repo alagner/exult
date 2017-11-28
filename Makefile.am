@@ -127,6 +127,7 @@ EXULTLIBS = \
 	objs/libobjs.la \
 	gumps/libgumps.la \
 	files/libu7file.la \
+	files/sha1/libsha1.la \
 	files/zip/libminizip.la \
 	gamemgr/libgamemgr.la
 
@@ -237,7 +238,6 @@ bundle: ${EXE_TARGET}
 	$(INSTALL_DATA) $(srcdir)/data/exult.flx $(bundle_name)/Contents/Resources/data
 	$(INSTALL_DATA) $(srcdir)/data/exult_bg.flx $(bundle_name)/Contents/Resources/data
 	$(INSTALL_DATA) $(srcdir)/data/exult_si.flx $(bundle_name)/Contents/Resources/data
-	$(INSTALL_DATA) $(srcdir)/data/exultmsg.txt $(bundle_name)/Contents/Resources/data
 	$(INSTALL_DATA) $(srcdir)/AUTHORS $(bundle_name)/Contents/Documents
 	$(INSTALL_DATA) $(srcdir)/COPYING $(bundle_name)/Contents/Documents
 	$(INSTALL_DATA) $(srcdir)/FAQ $(bundle_name)/Contents/Documents
@@ -258,7 +258,6 @@ iosbundle: ${EXE_TARGET}
 	$(INSTALL_DATA) $(srcdir)/data/exult_bg.flx $(bundle_name)/data
 	$(INSTALL_DATA) $(srcdir)/data/exult_si.flx $(bundle_name)/data
 	$(INSTALL_DATA) $(srcdir)/data/exult_iphone.flx $(bundle_name)/data
-	$(INSTALL_DATA) $(srcdir)/data/exultmsg.txt $(bundle_name)/data
 	$(INSTALL_DATA) $(srcdir)/AUTHORS $(bundle_name)
 	$(INSTALL_DATA) $(srcdir)/COPYING $(bundle_name)
 	$(INSTALL_DATA) $(srcdir)/FAQ $(bundle_name)

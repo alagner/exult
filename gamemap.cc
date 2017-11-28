@@ -57,6 +57,7 @@
 #include "weaponinf.h"
 #include <fstream>
 #include <sstream>
+#include "ios_state.hpp"
 
 #ifndef UNDER_EMBEDDED_CE
 using std::cerr;
@@ -1095,13 +1096,16 @@ void Game_map::read_ireg_objects(
 		} else {
 			// Just to shut up spurious warnings by compilers and static
 			// analyzers.
+			boost::io::ios_flags_saver flags(cerr);
+			boost::io::ios_fill_saver fill(cerr);
 			std::cerr << "Error: Invalid IREG entry on chunk (" << scx << ", "
 			          << scy << "): extended = " << extended << ", entlen = "
 			          << entlen << ", shnum = " << shnum << ", frnum = "
 			          << frnum << std::endl;
 			std::cerr << "Entry data:" << std::hex;
+			std::cerr << std::setfill('0');
 			for (int i = 0; i < entlen; i++)
-				std::cerr << " " << std::setfill('0') << std::setw(2)
+				std::cerr << " " << std::setw(2)
 				          << static_cast<int>(entry[i]);
 			std::cerr << std::endl;
 			continue;
@@ -1160,6 +1164,11 @@ Ireg_game_object *Game_map::create_ireg_object(
 		return new Spellbook_object(
 		           shnum, frnum, tilex, tiley, lift,
 		           &circles[0], 0);
+	} else if (info.get_shape_class() == Shape_info::barge) {
+		return new Barge_object(
+				    shnum, frnum, tilex, tiley, lift,
+					// FOR NOW: 8x16 tiles, North.
+				    8, 16, 0);
 	} else if (info.get_shape_class() == Shape_info::container) {
 		if (info.is_jawbone())
 			return new Jawbone_object(shnum, frnum, tilex, tiley,
@@ -1585,10 +1594,7 @@ Game_object *Game_map::locate_shape(
 		}
 		Map_chunk *chunk = get_chunk(cx, cy);
 		// Make sure objs. are read.
-		int sx = cx / c_chunks_per_schunk, sy = cy / c_chunks_per_schunk;
-		int schunk = sy * c_num_schunks + sx;
-		if (!schunk_read[schunk])
-			get_superchunk_objects(schunk);
+		ensure_chunk_read(cx, cy);
 		if (upwards) {
 			Recursive_object_iterator_backwards next(
 			    chunk->get_objects());

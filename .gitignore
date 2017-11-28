@@ -78,6 +78,7 @@ usecode/compiler/ucc
 usecode/compiler/ucparse.output
 usecode/ucxt/data/u7bgintrinsics.data
 usecode/ucxt/data/u7siintrinsics.data
+usecode/ucxt/data/u7sibetaintrinsics.data
 usecode/ucxt/head2data
 usecode/ucxt/src/ucxt
 
@@ -115,6 +116,9 @@ stamp.h
 stamp-h1
 version.h
 ylwrap
+log
+log[0-9]*
+TAGS
 
 # Object files
 *.o

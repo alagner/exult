@@ -78,6 +78,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "databuf.h"
 #include "modmgr.h"
 #include "ignore_unused_variable_warning.h"
+#include "array_size.h"
 
 using std::cerr;
 using std::cout;
@@ -524,7 +525,7 @@ ExultStudio::ExultStudio(int argc, char **argv): glade_path(0), static_path(0),
 	body_draw(0), explosion_draw(0),
 	equipwin(0), locwin(0), combowin(0), compilewin(0), compile_box(0),
 	ucbrowsewin(0), gameinfowin(0),
-	game_type(BLACK_GATE), expansion(false), curr_game(-1), curr_mod(-1),
+	game_type(BLACK_GATE), expansion(false), sibeta(false), curr_game(-1), curr_mod(-1),
 	server_socket(-1), server_input_tag(-1), waiting_for_server(0) {
 	// Initialize the various subsystems
 	self = this;
@@ -656,7 +657,7 @@ ExultStudio::ExultStudio(int argc, char **argv): glade_path(0), static_path(0),
 	// Init. 'Mode' menu, since Glade
 	//   doesn't seem to do it right.
 	GSList *group = NULL;
-	for (size_t i = 0; i < sizeof(mode_names) / sizeof(mode_names[0]); i++) {
+	for (size_t i = 0; i < array_size(mode_names); i++) {
 		GtkWidget *item = glade_xml_get_widget(app_xml, mode_names[i]);
 		gtk_radio_menu_item_set_group(GTK_RADIO_MENU_ITEM(item),
 		                              group);
@@ -1252,6 +1253,7 @@ void ExultStudio::set_game_path(string gamename, string modname) {
 	gameinfo->setup_game_paths();
 	game_type = gameinfo->get_game_type();
 	expansion = gameinfo->have_expansion();
+	sibeta = gameinfo->is_si_beta();
 	if (static_path)
 		g_free(static_path);
 	// Set up path to static.
@@ -1302,7 +1304,7 @@ void ExultStudio::set_game_path(string gamename, string modname) {
 		if (palbuf) // Just in case.
 			delete [] palbuf;
 		palbuf = new unsigned char[3 * 256]; // How about all white?
-		memset(palbuf, (63 << 16) | (63 << 8) | 63, 3 * 256);
+		memset(palbuf, 63, 3 * 256);
 	}
 	// Set background color.
 	palbuf[3 * 255] = (background_color >> 18) & 0x3f;
@@ -1314,7 +1316,7 @@ void ExultStudio::set_game_path(string gamename, string modname) {
 	fontfile = open_shape_file("fonts.vga");
 	gumpfile = open_shape_file("gumps.vga");
 	spritefile = open_shape_file("sprites.vga");
-	Setup_text(game_type == SERPENT_ISLE, expansion);   // Read in shape names.
+	Setup_text(game_type == SERPENT_ISLE, expansion, sibeta);   // Read in shape names.
 	misc_name_map.clear();
 	for (int i = 0; i < get_num_misc_names(); i++)
 		if (get_misc_name(i) != 0)
@@ -1354,14 +1356,12 @@ void add_to_tree(GtkTreeStore *model, const char *folderName,
 		}
 
 		string spath("<STATIC>"), ppath("<PATCH>");
-		spath = get_system_path(spath);
-		ppath = get_system_path(ppath);
 		const char *ext = strstr(pattern, "*");
 		if (!ext)
 			ext = pattern;
 		else
 			ext++;
-		DIR *dir = opendir(ppath.c_str());// Get names from 'patch' first.
+		DIR *dir = U7opendir(ppath.c_str());// Get names from 'patch' first.
 		if (dir) {
 			while ((entry = readdir(dir))) {
 				char *fname = entry->d_name;
@@ -1378,7 +1378,7 @@ void add_to_tree(GtkTreeStore *model, const char *folderName,
 			}
 			closedir(dir);
 		}
-		dir = opendir(spath.c_str());   // Now go through 'static'.
+		dir = U7opendir(spath.c_str());   // Now go through 'static'.
 		if (dir) {
 			while ((entry = readdir(dir))) {
 				char *fname = entry->d_name;
@@ -1789,7 +1789,7 @@ void ExultStudio::create_shape_file(
 		else
 			Image_file_info::write_file(pathname, 0, 0, false);
 	} catch (const exult_exception &e) {
-		EStudio::Alert(e.what());
+		EStudio::Alert("%s", e.what());
 	}
 	delete shape;
 	ExultStudio *studio = ExultStudio::get_instance();
@@ -1804,7 +1804,8 @@ bool ExultStudio::get_toggle(
     const char *name
 ) {
 	GtkWidget *btn = glade_xml_get_widget(app_xml, name);
-	return btn ? gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(btn)) : -1;
+	assert(btn);
+	return gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(btn));
 }
 
 /*
@@ -1859,8 +1860,7 @@ int ExultStudio::get_optmenu(
     const char *name
 ) {
 	GtkWidget *btn = glade_xml_get_widget(app_xml, name);
-	if (!btn)
-		return -1;
+	assert(btn);
 	GtkWidget *menu = gtk_option_menu_get_menu(GTK_OPTION_MENU(btn));
 	GtkWidget *active = gtk_menu_get_active(GTK_MENU(menu));
 	return g_list_index(GTK_MENU_SHELL(menu)->children, active);
@@ -1890,8 +1890,8 @@ int ExultStudio::get_spin(
     const char *name
 ) {
 	GtkWidget *btn = glade_xml_get_widget(app_xml, name);
-	return btn ? gtk_spin_button_get_value_as_int(
-	           GTK_SPIN_BUTTON(btn)) : -1;
+	assert(btn);
+	return gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(btn));
 }
 
 /*
@@ -1956,12 +1956,12 @@ int ExultStudio::get_num_entry(
 	GtkWidget *field = glade_xml_get_widget(app_xml, name);
 	return get_num_entry(field, 0);
 }
+
 int ExultStudio::get_num_entry(
     GtkWidget *field,
     int if_empty
 ) {
-	if (!field)
-		return -1;
+	assert(field);
 	const gchar *txt = gtk_entry_get_text(GTK_ENTRY(field));
 	if (!txt)
 		return -1;
@@ -2202,6 +2202,7 @@ void Alert(
 	std::va_list args;
 	va_start(args, msg);
 	char *fullmsg = g_strdup_vprintf(msg, args);
+	va_end(args);
 	Prompt(fullmsg, "Okay");
 	g_free(fullmsg);
 }
@@ -2270,7 +2271,7 @@ bool Copy_file(
 	try {
 		U7copy(src, dest);
 	} catch (exult_exception &e) {
-		EStudio::Alert(e.what());
+		EStudio::Alert("%s", e.what());
 		return false;
 	}
 	return true;
@@ -2697,7 +2698,7 @@ void ExultStudio::info_received(
 	set_toggle("play_button", !editing);
 	set_toggle("tile_grid_button", grid);
 	if (edmode >= 0 &&
-	        unsigned(edmode) < sizeof(mode_names) / sizeof(mode_names[0])) {
+	        unsigned(edmode) < array_size(mode_names)) {
 		GtkWidget *mitem = glade_xml_get_widget(app_xml,
 		                                        mode_names[edmode]);
 
@@ -2791,14 +2792,14 @@ static const gchar *encodings [] = {
 };
 
 static inline int Find_Encoding_Index(const char *enc) {
-	for (size_t i = 0; i < sizeof(encodings) / sizeof(encodings[0]); i++)
+	for (size_t i = 0; i < array_size(encodings); i++)
 		if (!strcmp(encodings[i], enc))
 			return i;
 	return -1;  // Not found.
 }
 
 static inline const char *Get_Encoding(int index) {
-	if (index >= 0 && unsigned(index) < sizeof(encodings) / sizeof(encodings[0]))
+	if (index >= 0 && unsigned(index) < array_size(encodings))
 		return encodings[index];
 	else
 		return encodings[0];

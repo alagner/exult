@@ -558,6 +558,58 @@ inline Game_object *Combat_schedule::find_foe(
 }
 
 /*
+ *  Back off if we're closer than our weapon's range.
+ */
+
+void Combat_schedule::back_off(
+	Actor *npc,
+    Game_object *attacker
+) {
+	int points, weapon_shape;
+	Game_object *weapon;
+	Weapon_info *winf = npc->get_weapon(points, weapon_shape, weapon);
+	int weapon_dist = winf ? winf->get_range() : 3;
+	int attacker_dist = npc->distance(attacker);
+	Game_object *opponent = npc->get_target();
+	if (opponent == attacker && weapon_dist <= attacker_dist)
+	    return;	 			 			// Stay within our weapon's range.
+	Tile_coord npc_tile = npc->get_tile(), attacker_tile = attacker->get_tile();
+	int dx = npc_tile.tx - attacker_tile.ty,
+	    dy = npc_tile.ty - attacker_tile.ty;
+	dx = dx < 0 ? -1 : dx > 0 ? 1 : 0;
+	dy = dy < 0 ? -1 : dy > 0 ? 1 : 0;
+    Tile_coord spots[3];
+	if (dx) {
+	    if (dy) {
+	        spots[0] = npc_tile + Tile_coord(dx, 0, 0);
+		    spots[1] = npc_tile + Tile_coord(dx, dy, 0);
+			spots[2] = npc_tile + Tile_coord(0, dy, 0);
+		} else {
+	        spots[0] = npc_tile + Tile_coord(dx, 0, 0);
+		    spots[1] = npc_tile + Tile_coord(dx, -1, 0);
+			spots[2] = npc_tile + Tile_coord(dx, 1, 0);
+		}
+    } else {							// dx == 0;
+	    spots[0] = npc_tile + Tile_coord(0, dy, 0);
+		spots[1] = npc_tile + Tile_coord(-1, dy, 0);
+		spots[2] = npc_tile + Tile_coord(1, dy, 0);
+    }
+	int ind = rand()%3;
+	if (npc->is_blocked(spots[ind])) {
+	    ind = (ind + 1)%3;
+		if (npc->is_blocked(spots[ind])) {
+		    ind = (ind + 1)%3;
+			if (npc->is_blocked(spots[ind]))
+			   return;
+		}
+    }
+	npc->move(spots[ind]);
+    int dir = npc->get_facing_direction(attacker);
+	npc->change_frame(npc->get_dir_framenum(dir, Actor::standing));
+	cout << "***" << npc->get_name() << " is backing off" << endl;
+}
+
+/*
  *  Handle the 'approach' state.
  */
 
@@ -732,6 +784,30 @@ static int Swap_weapons(
 	return 1;
 }
 
+// Just move around a bit.
+void Combat_schedule::wander_for_attack(
+) {
+	Tile_coord pos = npc->get_tile();
+	Game_object *opponent = npc->get_target();
+	int dir = npc->get_direction(opponent);
+
+	dir += rand()%2 ? 2 : 6;			// A perpendicular direction.
+	dir %= 8;
+	int tries = 3;
+	while (tries--) {
+	    int cnt = 2 + rand()%3;
+	    while (cnt--)
+	        pos = pos.get_neighbor(dir);
+	    // Find a free spot.
+	    Tile_coord dest = Map_chunk::find_spot(pos, 3, npc, 1);
+	    if (dest.tx != -1 && npc->walk_path_to_tile(dest,
+								gwin->get_std_delay(), rand() % 1000))
+		    return;				// Success.
+	}
+	// Failed?  Try again a little later.
+	npc->start(250, rand() % 3000);
+}
+
 /*
  *  Begin a strike at the opponent.
  */
@@ -795,7 +871,7 @@ void Combat_schedule::start_strike(
 	if (check_lof &&
 	        !Fast_pathfinder_client::is_straight_path(npc, opponent)) {
 		state = approach;
-		approach_foe(true); // Try to get adjacent.
+		wander_for_attack();
 		return;
 	}
 	if (!started_battle)
@@ -1022,6 +1098,8 @@ bool Combat_schedule::attack_target(
 		} else
 			target->attacked(attacker, weapon,
 			                 ammo ? ammo->get_shapenum() : -1, false);
+            if (trg)
+			    back_off(trg, attacker);
 		return true;
 	}
 	return false;

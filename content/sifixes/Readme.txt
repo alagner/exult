@@ -1,5 +1,5 @@
 ========================================================
-Miscelaneous fixes to Serpent Isle Usecode
+Miscellaneous fixes to Serpent Isle Usecode
 ========================================================
 
 0	Table of Contents
@@ -17,7 +17,7 @@ Miscelaneous fixes to Serpent Isle Usecode
 -----------------------
 Author: Marzo Sette Torres Junior
 e-mail: marzojr@taskmail.com.br
-version: 0.15.09
+version: 0.15.14
 
 	This modification fixes a few of the Usecode bugs that plague Ultima VII:
 	Serpent Isle. I have tested it *only* with Silver Seed installed; while it
@@ -30,6 +30,8 @@ version: 0.15.09
 	never know about it otherwise... The healing of Cantra was written by Jeff
 	Freedman (aka "DrCode"), and has been split into the files "npcs/cantra.uc"
 	and "items/bucketcure.uc".
+	
+	Knight Captain has provided fixes to version 0.15.12 and later editions.
 
 	Everything else has been my own work, although the structure of the mod is
 	based on Alun Bestor's Quests and Iteractions mod. Many fixes were based on
@@ -96,7 +98,7 @@ version: 0.15.09
 	- If you prefer 24-hour time, you can have it. Just ask Shamino about 'time'
 	  to switch formats.
 	- After being cured of insanity, the Companions will thank you for it. They
-	  will also join *before* Xenka is summoned. 
+	  will also join *before* Xenka is summoned.
 	- Basement of Temple of Tolerance was mistakenly identified as being "Temple
 	  of Logic" by the "Locate" spell.
 	- Gwenno can now receive the White Diamond Necklace from Iolo;
@@ -178,6 +180,30 @@ version: 0.15.09
 	    
 6	Version history
 -------------------
+version 0.15.14 - 2016-12-02
+	- Fixed the existing teleporter egg out of the gridiron football field,
+	  going to the intended location outside of Pothos' house/island: 2265,1919.
+version 0.15.13 - 2016-08-08
+	- Draxinar's second riddle now spells correct correctly.
+	- Draxinar's last of four riddles now accepts the correct answer of 13.
+	  The prior accepted-but-wrong answer now gives a new unique response.
+	- Bwundiai and Mwaerno now use a fixed check for Gwani furs in the party,
+	  and the party will respond differently if two Gwani are nearby or only one.
+	- The automatons in Skullcrusher now confront the Avatar upon entry, when
+	  reaching the exit door, and approaching both sets of brass doors inside.
+version 0.15.12 - 2016-07-15
+	- The equipment scroll has been respaced and reordered to reflect the
+	  order the companions rejoin the party. Avatar, Shamino, Dupre, Iolo.
+	- Delin can be asked about Batlin after you ask Jendon about daemon artifacts.
+	- Edrin's response about his dreams and Siranush will change if you have
+	  completed the Dream Realm.
+	- Neyobi the Gwani child now has a schedule once cured and woken up by double
+	  clicking on her. She will now accompany her mother and Baiyanda around.
+	- Kylista can be asked about the breastplate even if you know she owns it.
+	- Reading the evidence against Marsten will allow you to accuse him.
+	- Reading the same scroll will also set a flag if Pomdirgun is dead, which
+	  will change 6 conversations in Monitor.
+	- Iolo will return to pacing his cell after you talk with him in Monitor's jail.
 version: 0.15.11
 	- Fixed spell incantation runes in spellbook and spell scrolls.
 version: 0.15.10

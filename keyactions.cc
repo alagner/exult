@@ -46,6 +46,7 @@
 #include "effects.h"
 #include "palette.h"
 #include "Yesno_gump.h"
+#include "ShortcutBar_gump.h"
 #include "ignore_unused_variable_warning.h"
 
 #ifdef UNDER_CE
@@ -246,6 +247,18 @@ void ActionRepaint(int const *params) {
 	Game_window::get_instance()->paint();
 }
 
+//  { ActionScalevalIncrease, 0, "Increase scaleval", cheat_keys, NONE },
+void ActionScalevalIncrease(int const *params) {
+	ignore_unused_variable_warning(params);
+	increase_scaleval();
+}
+
+//  { ActionScalevalDecrease, 0, "Decrease scaleval", cheat_keys, NONE },
+void ActionScalevalDecrease(int const *params) {
+	ignore_unused_variable_warning(params);
+	decrease_scaleval();
+}
+
 //  { ActionBrighter, 0, "Increase brightness", normal_keys, NONE },
 void ActionBrighter(int const *params) {
 	ignore_unused_variable_warning(params);
@@ -265,9 +278,9 @@ void ActionFullscreen(int const *params) {
 	setup_video(!gwin->get_win()->is_fullscreen(), TOGGLE_FULLSCREEN);
 	const char *msg;
 	if (gwin->get_win()->is_fullscreen())
-		msg = "Fullscreen applied.\nKeep? %i...";
+		msg = "Fullscreen applied.\nKeep?";
 	else
-		msg = "Windowed mode.\nKeep? %i...";
+		msg = "Windowed mode.\nKeep?";
 	if (Countdown_gump::ask(msg, 20))
 		config->set("config/video/fullscreen",
 		            gwin->get_win()->is_fullscreen() ? "yes" : "no",

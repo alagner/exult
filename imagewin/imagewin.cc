@@ -36,6 +36,7 @@ Boston, MA  02111-1307, USA.
 
 #include "common_types.h"
 #include "utils.h"
+#include "array_size.h"
 
 #include <algorithm>
 
@@ -377,7 +378,7 @@ void Image_window::static_init() {
 	int bpps[] = { 0, 8, 16, 32 };
 
 	/* Get available fullscreen/hardware modes */
-	for (size_t i = 0; i < sizeof(bpps) / sizeof(bpps[0]); i++) {
+	for (size_t i = 0; i < array_size(bpps); i++) {
 #if SDL_VERSION_ATLEAST(2, 0, 0)
 		for (int j = 0; j < SDL_GetNumDisplayModes(0); j++) {
 			SDL_DisplayMode dispmode;
@@ -554,9 +555,13 @@ void Image_window::create_surface(
 
 	get_draw_dims(w, h, scale, fill_mode, game_width, game_height, inter_width, inter_height);
 
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+	if (try_scaler(w, h) == false) {
+#else
 	if ((game_width != inter_width || game_height != inter_height ||
 	        static_cast<int>(w) != game_width * scale || static_cast<int>(h) != game_height * scale ||
 	        force_bpp) && try_scaler(w, h) == false) {
+#endif
 		// Try fallback to point scaler if it failed, if it doesn't work, we probably can't run
 		scaler = point;
 		try_scaler(w, h);
@@ -800,8 +805,12 @@ bool Image_window::try_scaler(int w, int h) {
 		scaler = point;
 	}
 
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+	if (true) {
+#else
 	if (game_width != inter_width || game_height != inter_height ||
 	        w != game_width * scale || h != game_height * scale || force_bpp) {
+#endif
 		const ScalerInfo *info;
 
 		if (scaler < 0 || scaler >= NumScalers || scale == 1)

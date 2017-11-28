@@ -39,7 +39,12 @@ EXULT_FLX_OBJECTS = \
 	sb_maps.shp \
 	sb_notebook.shp \
 	sb_backpack.shp \
-	transparentmenu.shp
+	transparentmenu.shp \
+	exultmsg.txt \
+	exultmsg_de.txt \
+	exultmsg_es.txt \
+	exultmsg_fr.txt
+	
 
 EXULT_BG_FLX_OBJECTS = \
 	bg/flx.in \
@@ -128,6 +133,7 @@ EXULT_BG_PAPERDOL_VGA_OBJECTS = \
 	bg/love_arrows.shp \
 	bg/magebane.shp \
 	bg/shieldbacks.shp \
+	bg/diaper.shp \
 	bg/bg_paperdol.in
 EXULT_BG_MR_FACES_VGA_OBJECTS = \
 	bg/mr_faces.shp \
@@ -210,11 +216,11 @@ exult_si.flx: $(expack) $(EXULT_SI_FLX_OBJECTS)
 exult_iphone.flx: $(expack) $(EXULT_IPHONE_FLX_OBJECTS)
 	$(expack) -i $(srcdir)/iphone/flx.in
 	
-exult_bg_flx.h: exult.flx
+exult_flx.h: exult.flx
 
-data/exult_flx.h: exult_si.flx
+exult_bg_flx.h: exult_bg.flx
 
-data/exult_iphone_flx.h: exult_iphone.flx
+exult_iphone_flx.h: exult_iphone.flx
 
-data/exult_si_flx.h: exult_si.flx
+exult_si_flx.h: exult_si.flx
 

@@ -113,12 +113,8 @@ AM_CONDITIONAL(MACOSX, test x$ARCH = xmacosx)
 AC_PROG_AWK
 AC_PROG_CC
 AC_PROG_CPP
-AC_PROG_INSTALL
-AM_PROG_LEX
-AC_PROG_YACC
-AM_CONDITIONAL(LEXYACC, test -n "$YACC")
 
-AC_ARG_WITH(cxx, AS_HELP_STRING([--with-cxx=COMMAND], [Explicitly specify the C++ compiler to use]), CXX="")
+AC_ARG_WITH(cxx, AS_HELP_STRING([--with-cxx=COMMAND], [Explicitly specify the C++ compiler to use]),[CXX="$withval"],[CXX=""])
 
 if test -z "$CXX"; then
 	AC_PROG_CXX
@@ -126,7 +122,29 @@ else
 	AC_PROG_CXX([$CXX])
 fi
 
-AX_CXX_COMPILE_STDCXX_11(,[optional])
+# TODO: Maybe making a function to do these.
+# Lets clean up CFLAGS of -O[0-3gs]? and -g[0-3]?
+for ccflag in $CFLAGS; do
+	AS_CASE([$ccflag],
+		[-O|-O0|-O1|-O2|-O3|-Os|-Og|-g|-g1|-g2|-g3], [],
+		[NEWCFLAGS="$NEWCFLAGS $ccflag"])
+done
+CFLAGS="$NEWCFLAGS"
+
+# Lets clean up CXXFLAGS of -O[0-3gs]? and -g[0-3]?
+for cxxflag in $CXXFLAGS; do
+	AS_CASE([$cxxflag],
+		[-O|-O0|-O1|-O2|-O3|-Os|-Og|-g|-g1|-g2|-g3], [],
+		[NEWCXXFLAGS="$NEWCXXFLAGS $cxxflag"])
+done
+CXXFLAGS="$NEWCXXFLAGS"
+
+AX_CXX_COMPILE_STDCXX_11([noext],[optional])
+
+AC_PROG_INSTALL
+AM_PROG_LEX
+AC_PROG_YACC
+AM_CONDITIONAL(LEXYACC, test -n "$YACC")
 
 AM_DISABLE_SHARED
 
@@ -653,43 +671,102 @@ AC_SUBST([ICONDIR])
 
 
 # ---------------------------------------------------------------------
+# Workaround for 'ar' warning in libtool
+# ---------------------------------------------------------------------
+
+if test "x$AR_FLAGS" = "xcru" ; then
+	AR_FLAGS="cr"
+fi
+
+# ---------------------------------------------------------------------
+# Optimization options
+# ---------------------------------------------------------------------
+
+AC_ARG_WITH([optimization],
+            AS_HELP_STRING([--with-optimization=none|size|debug|light|normal|heavy],
+                           [Select optimization level @<:@default normal@:>@]),
+            [opt_level="$withval"], [opt_level="normal"])
+AC_MSG_CHECKING([desired optimization level])
+if test x$opt_level = xnone; then
+	AC_MSG_RESULT(none)
+	DEBUG_FLAGS="$DEBUG_FLAGS -O0"
+elif test x$opt_level = xsize; then
+	AC_MSG_RESULT(size)
+	AX_CHECK_COMPILE_FLAG([-Os], [have_os_opt=yes], [have_os_opt=no], [$DEBUG_FLAGS -Werror])
+	if test x$have_os_opt = xyes; then
+		DEBUG_FLAGS="$DEBUG_FLAGS -Os"
+	else
+		# Sane default if compiler does not support -Os
+		DEBUG_FLAGS="$DEBUG_FLAGS -O2"
+		for opt_flag in -falign-functions -falign-jumps -falign-loops -falign-labels -freorder-blocks -freorder-blocks-and-partition -fprefetch-loop-arrays -ftree-vect-loop-version
+		do
+			AX_CHECK_COMPILE_FLAG([$opt_flag], [DEBUG_FLAGS="$DEBUG_FLAGS $opt_flag"], [], [$DEBUG_FLAGS -Werror])
+		done
+	fi
+elif test x$opt_level = xdebug; then
+	AC_MSG_RESULT(debug)
+	AX_CHECK_COMPILE_FLAG([-Og], [have_og_opt=yes], [have_og_opt=no], [$DEBUG_FLAGS -Werror])
+	if test x$have_og_opt = xyes; then
+		DEBUG_FLAGS="$DEBUG_FLAGS -Og"
+	else
+		# Sane default if compiler does not support -Og
+		DEBUG_FLAGS="$DEBUG_FLAGS -O1"
+		for opt_flag in -fno-branch-count-reg -fno-if-conversion -fno-if-conversion2 -fno-inline-functions-called-once -fno-move-loop-invariants -fno-ssa-phiopt -fno-tree-bit-ccp -fno-tree-pta -fno-tree-sra
+		do
+			AX_CHECK_COMPILE_FLAG([$opt_flag], [DEBUG_FLAGS="$DEBUG_FLAGS $opt_flag"], [], [$DEBUG_FLAGS -Werror])
+		done
+	fi
+elif test x$opt_level = xlight; then
+	AC_MSG_RESULT(light)
+	DEBUG_FLAGS="$DEBUG_FLAGS -O1"
+elif test x$opt_level = xnormal; then
+	AC_MSG_RESULT(normal)
+	DEBUG_FLAGS="$DEBUG_FLAGS -O2"
+elif test x$opt_level = xheavy; then
+	AC_MSG_RESULT(heavy)
+	DEBUG_FLAGS="$DEBUG_FLAGS -O3"
+else
+	AC_MSG_RESULT(invalid)
+	echo "Invalid option given for --with-optimization: $opt_level."
+	echo "Expected one of 'none', 'size', 'debug', 'light', 'normal', 'heavy'."
+	exit 1
+fi
+
+# link-time optimization
+GB_ENABLE_LTO
+DEBUG_FLAGS="$DEBUG_FLAGS $LTO_CFLAGS"
+
+
+# ---------------------------------------------------------------------
 # Debugging options
 # ---------------------------------------------------------------------
 
-# basic debugging mode
-AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug], [Enable debug messages @<:@default no@:>@]),,enable_debug=no)
+AC_ARG_WITH([debug],
+            AS_HELP_STRING([--with-debug=no|messages|symbols|full|extreme],
+                           [Enable debug mode @<:@default no@:>@]),
+            [dbg_level="$withval"], [dbg_level="no"])
 AC_MSG_CHECKING([whether to enable debugging mode])
-if test x$enable_debug = xyes; then
-	AC_MSG_RESULT(yes)
+if test x$dbg_level = xno; then
+	AC_MSG_RESULT(no)
+elif test x$dbg_level = xmessages; then
+	AC_MSG_RESULT(messages only)
 	AC_DEFINE(DEBUG, 1, [Enable debug mode])
-	DEBUG_FLAGS="-g"
+elif test x$dbg_level = xsymbols -o x$dbg_level = xfull -o x$dbg_level = xextreme; then
+	AC_MSG_RESULT($dbg_level)
+	if test x$dbg_level != xsymbols; then
+		AC_DEFINE(DEBUG, 1, [Enable debug mode])
+	fi
+	if test x$dbg_level = xextreme; then
+		DEBUG_FLAGS="$DEBUG_FLAGS -g3"
+	else
+		DEBUG_FLAGS="$DEBUG_FLAGS -g"
+	fi
+	# TODO: Maybe add warning that -O0 and -Og work better for debug symbols?
 else
-	AC_MSG_RESULT(no)
-	DEBUG_FLAGS="-O2"
-fi
-
-# optimized debugging mode
-AC_ARG_ENABLE(optimized-debug, AS_HELP_STRING([--enable-optimized-debug], [Enable optimized debug build @<:@default no@:>@]),,enable_optimized_debug=no)
-AC_MSG_CHECKING([whether to do an optimized debug build])
-if test x$enable_optimized_debug = xyes; then
-	AC_MSG_RESULT(yes)
-	AC_DEFINE(DEBUG, 1, [Enable debug mode])
-	DEBUG_FLAGS="-g -O2 -fno-default-inline -fno-inline"
-else
-	AC_MSG_RESULT(no)
-fi
-
-# heavy unoptimized GDB debugging mode
-AC_ARG_ENABLE(heavy-gdb-debug, AS_HELP_STRING([--enable-heavy-gdb-debug], [Enable debug messages with GDB symbols @<:@default no@:>@]),,enable_heavy_gdb_debug=no)
-AC_MSG_CHECKING([whether to enable unoptimized debugging mode with GDB symbols])
-if test x$enable_heavy_gdb_debug = xyes; then
-	AC_MSG_RESULT(yes)
-	AC_DEFINE(DEBUG, 1, [Enable unoptimized debug mode plus GDB symbols])
-	DEBUG_FLAGS="-g3"
-	CXXFLAGS="-O0"
-	CFLAGS="-O0"
-else
-	AC_MSG_RESULT(no)
+	AC_MSG_RESULT(invalid)
+	echo "Invalid option given for --with-debug: $dbg_level."
+	echo "Expected one of 'no', 'messages', 'symbols', 'full', 'extreme'."
+	exit 1
 fi
 
 # SDL parachute?
@@ -702,65 +779,61 @@ else
 	AC_MSG_RESULT(no)
 fi
 
-# Usecode debugger
-#AC_ARG_ENABLE(usecode-debugger, AS_HELP_STRING([--enable-usecode-debugger], [Support for usecode debugging @<:@default no@:>@]),,enable_usecode_debugger=no)
-#AC_MSG_CHECKING([whether to enable the usecode debugger])
-#if test x$enable_usecode_debugger = xyes; then
-#	AC_MSG_RESULT(yes)
-#	AC_DEFINE(USECODE_DEBUGGER, 1, [Enable Usecode debugging])
-#else
-#	AC_MSG_RESULT(no)
-#fi
-
 
 # ---------------------------------------------------------------------
 # Warning level
 # ---------------------------------------------------------------------
 
-# determine warning level
-AC_MSG_CHECKING([warning level])
-WARNING_LEVEL="normal"
+CHK_WARN="-Wall -Wextra -pedantic -Wcast-qual -Wwrite-strings -Wredundant-decls -Wdisabled-optimization -fcheck-new"
+CHK_WARN="$CHK_WARN -Wctor-dtor-privacy -Wnon-virtual-dtor -Wold-style-cast -Woverloaded-virtual -Wuseless-cast"
+CHK_WARN="$CHK_WARN -Wformat-nonliteral -Wformat-security -Wshift-negative-value -Wshift-overflow -Wtrigraphs"
+CHK_WARN="$CHK_WARN -Wuninitialized -fstrict-aliasing -Wduplicated-cond -Wplacement-new -Wcast-align"
+CHK_WARN="$CHK_WARN -Wlogical-op -Wlogical-not-parentheses -Wpointer-sign"
+CHK_WARN="$CHK_WARN -Wundef"
+#CHK_WARN="$CHK_WARN -Wpadded -Wshadow -Wconditionally-supported"
+CHK_WARN="$CHK_WARN -Wc++11-compat -Wc++14-compat -Wc++1z-compat"
+# GCC attributes
+#CHK_WARN="$CHK_WARN -Wsuggest-attribute=pure -Wsuggest-attribute=const -Wsuggest-attribute=noreturn -Wsuggest-attribute=format"
+# C++11 and newer
+#CHK_WARN="$CHK_WARN -Wsuggest-final-types -Wsuggest-final-methods -Wsuggest-override -Wzero-as-null-pointer-constant"
+# Clang warnings
+CHK_WARN="$CHK_WARN -Wunused-const-variables -Wabsolute-value -Wdeprecated-register -Wmismatched-tags -Wunused-private-field"
 
-AC_ARG_ENABLE(warnings, AS_HELP_STRING([--enable-warnings], [Enable all warnings @<:@default no@:>@]),,enable_warnings=no)
-# more warnings
-AC_ARG_ENABLE(paranoid-warnings, AS_HELP_STRING([--enable-paranoid-warnings], [Enable paranoid warnings @<:@default no@:>@]),,enable_paranoid_warnings=no)
-if test x$enable_paranoid_warnings = xyes; then
-#	WARNINGS="-O -Wall -Wextra -Wcast-qual -Wwrite-strings -Wconversion -Wredundant-decls -Winline -Wdisabled-optimization -fcheck-new -Wctor-dtor-privacy -Wnon-virtual-dtor -Wold-style-cast -Woverloaded-virtual"
-	WARNINGS="-O -Wall -Wextra -Wcast-qual -Wwrite-strings -Wredundant-decls -Wdisabled-optimization -fcheck-new -Wctor-dtor-privacy -Wnon-virtual-dtor -Wold-style-cast -Woverloaded-virtual -Wuseless-cast"
-#	DEBUG_FLAGS="$DEBUG_FLAGS -Wall -O -Wunused -Wuninitialized -Woverloaded-virtual -Wpointer-arith -Wcast-qual -Wwrite-strings -Wstrict-prototypes -Wmissing-prototypes -Winline"
-	DEBUG_FLAGS="$DEBUG_FLAGS $WARNINGS"
-	WARNING_LEVEL="paranoid"
-elif test x$enable_warnings = xyes; then
- 	DEBUG_FLAGS="$DEBUG_FLAGS -O -Wall -Wextra -Wunused -Wuninitialized -Woverloaded-virtual -Wpointer-arith -Wcast-qual -Wwrite-strings"
-	WARNING_LEVEL="all"
+# Eliminate some spurious warnings due to low optimization level.
+if test x$opt_level = xnone -o x$opt_level = xdebug; then
+	CHK_WARN="$CHK_WARN -Wno-maybe-uninitialized"
 fi
 
-# yet more warnings
-AC_ARG_ENABLE(pedantic-warnings, AS_HELP_STRING([--enable-pedantic-warnings], [Enable pedantic warnings @<:@default no@:>@]),,enable_pedantic_warnings=no)
-if test x$enable_pedantic_warnings = xyes; then
-	WARNINGS="$WARNINGS -pedantic"
-	DEBUG_FLAGS="$DEBUG_FLAGS -pedantic"
-	if test x$enable_warnings = xyes -o x$enable_paranoid_warnings = xyes; then
-		WARNING_LEVEL="$WARNING_LEVEL, pedantic"
-	else
-		WARNING_LEVEL="pedantic"
-	fi
+# Warnings give errors
+AC_ARG_ENABLE(warning-errors, AS_HELP_STRING([--enable-warning-errors], [Turn all warnings into errors @<:@default no@:>@]),,enable_warning_errors=no)
+if test x$enable_warning_errors = xyes; then
+	CHK_WARN="-Werror $CHK_WARN"
 fi
 
-# Output result
-AC_MSG_RESULT($WARNING_LEVEL)
-
+# Pedantic warnings give errors
+AC_ARG_ENABLE(pedantic-errors, AS_HELP_STRING([--enable-pedantic-errors], [Turn all pedantic warnings into errors @<:@default no@:>@]),,enable_pedantic_errors=no)
+if test x$enable_pedantic_errors = xyes; then
+	CHK_WARN="-pedantic-errors $CHK_WARN"
+fi
 
 # Ignore long-long warnings (for SDL header files...)
-AC_ARG_ENABLE(long-long-warnings, AS_HELP_STRING([--enable-long-long-warnings], [Enable long long warnings- needed for Compaq's cxx with GNU ld @<:@default no@:>@]),
-	,enable_long_long_warnings=no)
+AC_ARG_ENABLE(long-long-warnings, AS_HELP_STRING([--enable-long-long-warnings], [Enable long long warnings (for Compaq cxx with GNU ld) @<:@default no@:>@]),,enable_long_long_warnings=no)
 AC_MSG_CHECKING([if we should disable long-long warnings])
 if test x$enable_long_long_warnings = xyes; then
 	AC_MSG_RESULT(no)
 else
 	AC_MSG_RESULT(yes)
-	DEBUG_FLAGS="$DEBUG_FLAGS -Wno-long-long"
+	CHK_WARN="$CHK_WARN -Wno-long-long"
 fi
+
+WARNINGS=""
+for cxx_flag in $CHK_WARN
+do
+	AX_CHECK_COMPILE_FLAG([$cxx_flag], [WARNINGS="$WARNINGS $cxx_flag"], [], [$DEBUG_FLAGS -Werror])
+done
+
+DEBUG_FLAGS="$DEBUG_FLAGS $WARNINGS"
+
 
 # --------------------
 # External features
@@ -836,6 +909,30 @@ if test x$enable_exult_studio = xyes; then
 	AM_CONDITIONAL(BUILD_STUDIO, true)
 else
 	AM_CONDITIONAL(BUILD_STUDIO, false)
+	AC_MSG_RESULT(no)
+fi
+
+# Usecode debugger
+AC_ARG_WITH([usecode-debugger],
+            AS_HELP_STRING([--with-usecode-debugger=no|console|yes],
+                           [Experimental and buggy support for usecode debugging @<:@default no@:>@]),
+            [enable_usecode_debugger="$withval"], [enable_usecode_debugger="no"])
+AC_MSG_CHECKING([whether to enable the usecode debugger])
+if test x$enable_usecode_debugger = xconsole -o x$enable_usecode_debugger = xyes; then
+	AC_MSG_RESULT(yes)
+	if test x$enable_usecode_debugger = xconsole; then
+		AC_DEFINE(USECODE_CONSOLE_DEBUGGER, 1, [Enable Usecode debugging on console])
+	elif test x$enable_exult_studio != xyes; then
+		echo "But we are not building Exult Studio."
+		echo "Try again, either with --enable-exult-studio, or without the usecode debugger"
+		exit 1
+	elif test x$enable_exult_studio_support != xyes; then
+		echo "But we are not building Exult with Exult Studio support."
+		echo "Try again, either with --enable-exult-studio-support, or without the usecode debugger"
+		exit 1
+	fi
+	AC_DEFINE(USECODE_DEBUGGER, 1, [Enable Usecode debugging])
+else
 	AC_MSG_RESULT(no)
 fi
 
@@ -949,6 +1046,7 @@ AC_SUBST(DEBUG_FLAGS)
 AC_SUBST(ZLIB_LIBS)
 AC_SUBST(OPENGL_LIBS)
 AC_SUBST(WARNINGS)
+AC_SUBST(AR_FLAGS)
 
 AC_OUTPUT([
 exult.spec
@@ -967,6 +1065,7 @@ content/bgkeyring/Makefile
 content/bg/Makefile
 content/islefaq/Makefile
 files/Makefile
+files/sha1/Makefile
 files/zip/Makefile
 gamemgr/Makefile
 gumps/Makefile
