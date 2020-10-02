@@ -421,7 +421,6 @@ bool U7exists(
 ) {
 	string name = get_system_path(fname);
     std::error_code err;
-    return exists(
 #if (__cplusplus < 201703L)
 	struct stat sbuf;
 #endif //(__cplusplus < 201703L)
