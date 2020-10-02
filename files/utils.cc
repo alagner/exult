@@ -420,12 +420,20 @@ bool U7exists(
     const char *fname         // May be converted to upper-case.
 ) {
 	string name = get_system_path(fname);
+    std::error_code err;
+    return exists(
+#if (__cplusplus < 201703L)
 	struct stat sbuf;
-
+#endif //(__cplusplus < 201703L)
 	int uppercasecount = 0;
 	do {
+#if (__cplusplus < 201703L)
 		bool exists = (stat(name, &sbuf) == 0);
 		if (exists)
+#else
+        std::error_code err;
+        if(fs::exists(name, err))
+#endif //(__cplusplus < 201703L)
 			return true; // found it!
 	} while (base_to_uppercase(name, ++uppercasecount));
 
