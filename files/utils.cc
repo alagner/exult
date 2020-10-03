@@ -23,11 +23,7 @@
 #  include <config.h>
 #endif
 
-#if (__cplusplus >= 201703L)
-#include <filesystem>
-#include <system_error>
-namespace fs = std::filesystem;
-#endif // (__cplusplus >= 201703L)
+#include "filesystem.h"
 
 #include <cctype>
 #include <cstdio>
@@ -420,19 +416,10 @@ bool U7exists(
     const char *fname         // May be converted to upper-case.
 ) {
 	string name = get_system_path(fname);
-    std::error_code err;
-#if (__cplusplus < 201703L)
-	struct stat sbuf;
-#endif //(__cplusplus < 201703L)
+    fs::error_code err;
 	int uppercasecount = 0;
 	do {
-#if (__cplusplus < 201703L)
-		bool exists = (stat(name, &sbuf) == 0);
-		if (exists)
-#else
-        std::error_code err;
         if(fs::exists(name, err))
-#endif //(__cplusplus < 201703L)
 			return true; // found it!
 	} while (base_to_uppercase(name, ++uppercasecount));
 
@@ -455,7 +442,7 @@ int U7mkdir(
 		name.resize(pos + 1);
 
 #if (__cplusplus >= 201703L)
-    std::error_code err;
+    fs::error_code err;
     if (fs::create_directory(name, err))
         fs::permissions(name, fs::perms(mode), err);
     return err.value();
