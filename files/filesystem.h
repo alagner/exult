@@ -22,28 +22,21 @@
 #ifndef FILESYSTEM_H
 #define FILESYSTEM_H
 
-#include <system_error>
 #if (__cplusplus >= 201703L)
 #include <filesystem>
-#else /* (__cplusplus < 201703L) */
-#include <cstdio>
 #endif /* (__cplusplus < 201703L) */
 
 namespace fs {
-using std::error_code;
 
 #if (__cplusplus >= 201703L)
 using namespace std::filesystem;
 #else /* (__cplusplus < 201703L) */
-inline bool exists(
-    const string& file,
-    std::error_code& err
-) noexcept
-{
-    struct stat sbuf;
-    err = stat(name, std::addressof(sbuf));
-    return (err.value() == 0);
-}
+using perms = unsigned;
+
+bool exists(const std::string& file, std::error_code& err) noexcept;
+bool create_directory(const std::string& file, std::error_code& err) noexcept;
+bool remove(const std::string& file, std::error_code& err) noexcept;
+void permissions(const std::string& file, perms prms, std::error_code& err) noexcept;
 #endif /* (__cplusplus < 201703L) */
 } /* namespace fs */
 

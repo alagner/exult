@@ -30,6 +30,8 @@ libu7file_la_SOURCES =	\
 	U7fileman.h	\
 	U7obj.cc	\
 	U7obj.h	\
+	filesystem.cc \
+	filesystem.h \
 	utils.cc	\
 	utils.h		\
 	databuf.h	\

@@ -31,6 +31,7 @@
 #include <cstring>
 #include <string>
 #include <fstream>
+#include <system_error>
 #include <map>
 #include <list>
 #include <sys/stat.h>
@@ -367,16 +368,14 @@ void U7remove(
 	DeleteFile(lpszT);
 #else
 
-	struct stat sbuf;
-
+    std::error_code err;
 	int uppercasecount = 0;
 	do {
-		bool exists = (stat(name, &sbuf) == 0);
-		if (exists) {
-			std::remove(name.c_str());
+		if (fs::exists(name, err)) {
+			fs::remove(name.c_str());
 		}
 	} while (base_to_uppercase(name, ++uppercasecount));
-	std::remove(name.c_str());
+	fs::remove(name.c_str());
 #endif
 }
 
@@ -416,7 +415,7 @@ bool U7exists(
     const char *fname         // May be converted to upper-case.
 ) {
 	string name = get_system_path(fname);
-    fs::error_code err;
+    std::error_code err;
 	int uppercasecount = 0;
 	do {
         if(fs::exists(name, err))
@@ -442,7 +441,7 @@ int U7mkdir(
 		name.resize(pos + 1);
 
 #if (__cplusplus >= 201703L)
-    fs::error_code err;
+    std::error_code err;
     if (fs::create_directory(name, err))
         fs::permissions(name, fs::perms(mode), err);
     return err.value();
