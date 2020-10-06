@@ -140,6 +140,9 @@ AC_LANG([C++])
 AX_CXX_COMPILE_STDCXX_17([noext],[optional])
 if test "$HAVE_CXX17" = "0"; then
 	AX_CXX_COMPILE_STDCXX_14([noext],[mandatory])
+	AM_CONDITIONAL([HAVE_FILESYSTEM], [false])
+else
+	AC_CHECK_HEADERS([filesystem], AM_CONDITIONAL([HAVE_FILESYSTEM], [true]), AM_CONDITIONAL([HAVE_FILESYSTEM], [false]))
 fi
 AC_PROG_CXXCPP
 
