@@ -140,9 +140,9 @@ AC_LANG([C++])
 AX_CXX_COMPILE_STDCXX_17([noext],[optional])
 if test "$HAVE_CXX17" = "0"; then
 	AX_CXX_COMPILE_STDCXX_14([noext],[mandatory])
-	AM_CONDITIONAL([HAVE_FILESYSTEM], [false])
 else
-	AC_CHECK_HEADERS([filesystem], AM_CONDITIONAL([HAVE_FILESYSTEM], [true]), AM_CONDITIONAL([HAVE_FILESYSTEM], [false]))
+	AC_CHECK_HEADERS([filesystem])
+
 fi
 AC_PROG_CXXCPP
 
@@ -234,6 +234,43 @@ AC_MSG_RESULT($ac_cv_func_mkstemp)
 if test x$ac_cv_func_mkstemp = xyes ; then
 	AC_DEFINE(HAVE_MKSTEMP, 1, [Have mkstemp])
 fi
+
+# std::filesystem::path breaks compilation on OSX Mojave
+# or earlier versions of Xcode, despite the fact it's there
+AC_MSG_CHECKING([if std::filesystem::path compiles fine])
+AC_TRY_COMPILE([
+#if HAVE_FILESYSTEM
+#include <filesystem>
+#endif
+],
+[
+	std::filesystem::path a{};
+],
+	ac_cv_class_fs_path=yes,
+	ac_cv_class_fs_path=no)
+AC_MSG_RESULT($ac_cv_class_fs_path)
+AM_CONDITIONAL([HAVE_FILESYSTEM], [ test "x$ac_cv_class_fs_path" = xyes ])
+if test "x$ac_cv_class_fs_path" = xyes; then
+	AC_DEFINE(USE_STDFILESYSTEM, 1, [Use std::filesystem])
+fi
+
+AC_MSG_CHECKING([if std::filesystem requires linking stdc++fs])
+AC_TRY_COMPILE([
+#if HAVE_FILESYSTEM
+#include <filesystem>
+#endif
+],
+[
+	std::filesystem::path a{};
+],
+	ac_cv_link_fs_stdlib=no,
+	ac_cv_link_fs_stdlib=yes)
+	AC_MSG_RESULT($ac_cv_fs_stdlib)
+if [ test "x$ac_cv_fs_stdlib" = xyes ]; then
+	SYSLIBS="$SYSLIBS -lstdc++fs"
+fi
+
+
 
 # do we need special X11 libraries?
 AC_MSG_CHECKING([for special X11 libraries])
