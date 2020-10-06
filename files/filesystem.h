@@ -26,6 +26,9 @@
 #  include <config.h>
 #endif
 
+#include <system_error>
+#include <string>
+
 #if (HAVE_FILESYSTEM && USE_STDFILESYSTEM)
 #include <filesystem>
 #endif /* (HAVE_FILESYSTEM && USE_STDFILESYSTEM) */
