@@ -27,7 +27,7 @@ bool exists(
 
 bool create_directory(
     const string& name,
-    std::error_code err) noexcept
+    std::error_code& err) noexcept
 {
     err = {0, std::system_category()};
 #if defined(_WIN32) && defined(UNICODE)
