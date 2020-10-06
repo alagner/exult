@@ -440,26 +440,10 @@ int U7mkdir(
 	if (pos != string::npos)
 		name.resize(pos + 1);
 
-#if (__cplusplus >= 201703L)
     std::error_code err;
     if (fs::create_directory(name, err))
         fs::permissions(name, fs::perms(mode), err);
     return err.value();
-#else
-#if defined(_WIN32) && defined(UNICODE)
-	const char *n = name.c_str();
-	int nLen = std::strlen(n) + 1;
-	LPTSTR lpszT = (LPTSTR) alloca(nLen * 2);
-	MultiByteToWideChar(CP_ACP, 0, n, -1, lpszT, nLen);
-	ignore_unused_variable_warning(mode);
-	return CreateDirectory(lpszT, nullptr);
-#elif defined(_WIN32)
-	ignore_unused_variable_warning(mode);
-	return mkdir(name.c_str());
-#else
-	return mkdir(name.c_str(), mode); // Create dir. if not already there.
-#endif
-#endif // (__cplusplus >= 201703L)
 }
 
 #ifdef _WIN32
