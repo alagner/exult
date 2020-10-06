@@ -255,7 +255,7 @@ if test "x$ac_cv_class_fs_path" = xyes; then
 fi
 
 AC_MSG_CHECKING([if std::filesystem requires linking stdc++fs])
-AC_TRY_COMPILE([
+AC_TRY_LINK([
 #if HAVE_FILESYSTEM
 #include <filesystem>
 #endif
