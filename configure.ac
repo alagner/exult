@@ -259,9 +259,11 @@ AC_TRY_LINK([
 #if HAVE_FILESYSTEM
 #include <filesystem>
 #endif
+#include <system_error>
 ],
 [
-	std::filesystem::path a{};
+    std::error_code err;
+    auto a = std::filesystem::status("a", err);
 ],
 	ac_cv_link_fs_stdlib=no,
 	ac_cv_link_fs_stdlib=yes)
