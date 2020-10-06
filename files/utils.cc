@@ -360,23 +360,14 @@ void U7remove(
 ) {
 	string name = get_system_path(fname);
 
-#if defined(_WIN32) && defined(UNICODE)
-	const char *n = name.c_str();
-	int nLen = std::strlen(n) + 1;
-	LPTSTR lpszT = (LPTSTR) alloca(nLen * 2);
-	MultiByteToWideChar(CP_ACP, 0, n, -1, lpszT, nLen);
-	DeleteFile(lpszT);
-#else
-
     std::error_code err;
 	int uppercasecount = 0;
 	do {
 		if (fs::exists(name, err)) {
-			fs::remove(name.c_str());
+			fs::remove(name.c_str(), err);
 		}
 	} while (base_to_uppercase(name, ++uppercasecount));
-	fs::remove(name.c_str());
-#endif
+	fs::remove(name.c_str(), err);
 }
 
 /*
