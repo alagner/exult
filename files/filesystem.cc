@@ -73,14 +73,14 @@ void permissions(
     std::error_code& err
 ) noexcept
 {
-    err = {::chmod(file.c_str(), static_cast<mode_t>(prms)), std::system_category()};
-#if !defined(_WIN32)
-#else
-    //do nothing
-    ignore_unused_variable_warning(file);
-    ignore_unused_variable_warning(prms);
-    ignore_unused_variable_warning(err);
-#endif /* !defined(_WIN32) */
+#ifdef _WIN32
+//do nothing
+	ignore_unused_variable_warning(file);
+	ignore_unused_variable_warning(prms);
+	ignore_unused_variable_warning(err);
+#else /* !_WIN32 */
+	err = {::chmod(file.c_str(), static_cast<mode_t>(prms)), std::system_category()};
+#endif /* _WIN32 */
 }
 
 
