@@ -364,10 +364,10 @@ void U7remove(
 	int uppercasecount = 0;
 	do {
 		if (fs::exists(name, err)) {
-			fs::remove(name.c_str(), err);
+			fs::remove(name, err);
 		}
 	} while (base_to_uppercase(name, ++uppercasecount));
-	fs::remove(name.c_str(), err);
+	fs::remove(name, err);
 }
 
 /*
