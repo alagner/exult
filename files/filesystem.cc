@@ -60,11 +60,11 @@ bool remove(
 	LPTSTR lpszT = (LPTSTR) alloca(nLen * 2);
 	MultiByteToWideChar(CP_ACP, 0, n, -1, lpszT, nLen);
 	if(!DeleteFile(lpszT))
-        err = {GetLastError(), std::system_category()};
+		err = {GetLastError(), std::system_category()};
 #else
-    err = {std::remove(name.c_str()), std::system_category()};
+		err = {std::remove(name.c_str()), std::system_category()};
 #endif  /* (_WIN32) && defined(UNICODE) */
-    return err.value() == 0;
+	return err.value() == 0;
 }
 
 void permissions(

@@ -360,7 +360,7 @@ void U7remove(
 ) {
 	string name = get_system_path(fname);
 
-    std::error_code err;
+	std::error_code err;
 	int uppercasecount = 0;
 	do {
 		if (fs::exists(name, err)) {
@@ -406,10 +406,10 @@ bool U7exists(
     const char *fname         // May be converted to upper-case.
 ) {
 	string name = get_system_path(fname);
-    std::error_code err;
+	std::error_code err;
 	int uppercasecount = 0;
 	do {
-        if(fs::exists(name, err))
+		if(fs::exists(name, err))
 			return true; // found it!
 	} while (base_to_uppercase(name, ++uppercasecount));
 
@@ -431,10 +431,10 @@ int U7mkdir(
 	if (pos != string::npos)
 		name.resize(pos + 1);
 
-    std::error_code err;
-    if (fs::create_directory(name, err))
-        fs::permissions(name, fs::perms(mode), err);
-    return err.value();
+	std::error_code err;
+	if (fs::create_directory(name, err))
+		fs::permissions(name, fs::perms(mode), err);
+	return err.value();
 }
 
 #ifdef _WIN32

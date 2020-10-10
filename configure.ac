@@ -142,7 +142,6 @@ if test "$HAVE_CXX17" = "0"; then
 	AX_CXX_COMPILE_STDCXX_14([noext],[mandatory])
 else
 	AC_CHECK_HEADERS([filesystem])
-
 fi
 AC_PROG_CXXCPP
 
