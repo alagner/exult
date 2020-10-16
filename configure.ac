@@ -266,7 +266,7 @@ AC_TRY_LINK([
 ],
 	ac_cv_link_fs_stdlib=no,
 	ac_cv_link_fs_stdlib=yes)
-if test "x$ac_cv_fs_stdlib" = xyes -a "x$ac_cv_class_fs_path" = xyes; then
+if test "x$ac_cv_link_fs_stdlib" = xyes -a "x$ac_cv_class_fs_path" = xyes; then
 	AC_MSG_RESULT(yes)
 	SYSLIBS="$SYSLIBS -lstdc++fs"
 else
