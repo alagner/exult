@@ -261,8 +261,8 @@ AC_TRY_LINK([
 #include <system_error>
 ],
 [
-    std::error_code err;
-    auto a = std::filesystem::status("a", err);
+	std::system_error e;
+	std::filesystem::create_directory("/dev/null", e);
 ],
 	ac_cv_link_fs_stdlib=no,
 	ac_cv_link_fs_stdlib=yes)
