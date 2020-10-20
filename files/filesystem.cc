@@ -75,9 +75,7 @@ void permissions(
 {
 #ifdef _WIN32
 //do nothing
-	ignore_unused_variable_warning(file);
-	ignore_unused_variable_warning(prms);
-	ignore_unused_variable_warning(err);
+	ignore_unused_variable_warning(file, prms, err);
 #else /* !_WIN32 */
 	err = {::chmod(file.c_str(), static_cast<mode_t>(prms)), std::system_category()};
 #endif /* _WIN32 */
