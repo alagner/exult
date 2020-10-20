@@ -254,18 +254,21 @@ if test "x$ac_cv_class_fs_path" = xyes; then
 fi
 
 AC_MSG_CHECKING([if std::filesystem requires linking stdc++fs])
-AC_TRY_LINK([
+AC_LINK_IFELSE(
+[AC_LANG_SOURCE([
 #if HAVE_FILESYSTEM
 #include <filesystem>
 #endif
 #include <system_error>
-],
-[
-	std::system_error e;
+
+int main() {
+	std::error_code e;
 	std::filesystem::create_directory("/dev/null", e);
-],
-	ac_cv_link_fs_stdlib=no,
-	ac_cv_link_fs_stdlib=yes)
+}
+])],
+	[ac_cv_link_fs_stdlib=no],
+	[ac_cv_link_fs_stdlib=yes]
+)
 if test "x$ac_cv_link_fs_stdlib" = xyes -a "x$ac_cv_class_fs_path" = xyes; then
 	AC_MSG_RESULT(yes)
 	SYSLIBS="$SYSLIBS -lstdc++fs"
