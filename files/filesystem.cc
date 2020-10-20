@@ -53,7 +53,7 @@ bool remove(
     std::error_code& err
 ) noexcept
 {
-    err = {0, std::system_category()};
+	err = {0, std::system_category()};
 #if defined(_WIN32) && defined(UNICODE)
 	const char *n = name.c_str();
 	int nLen = std::strlen(n) + 1;
