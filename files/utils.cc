@@ -23,8 +23,6 @@
 #  include <config.h>
 #endif
 
-#include "filesystem.h"
-
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
@@ -58,6 +56,13 @@
 #  include <CoreFoundation/CoreFoundation.h>
 #  include <sys/param.h> // for MAXPATHLEN
 #endif
+
+#if (HAVE_FILESYSTEM && USE_STDFILESYSTEM)
+#  include <filesystem>
+namespace fs = std::filesystem;
+#else
+#  include "filesystem.h"
+#endif /* (HAVE_FILESYSTEM && USE_STDFILESYSTEM) */
 
 using std::cerr;
 using std::string;

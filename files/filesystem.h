@@ -22,29 +22,15 @@
 #ifndef FILESYSTEM_H
 #define FILESYSTEM_H
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif
-
 #include <system_error>
 #include <string>
 
-#if (HAVE_FILESYSTEM && USE_STDFILESYSTEM)
-#include <filesystem>
-#endif /* (HAVE_FILESYSTEM && USE_STDFILESYSTEM) */
-
 namespace fs {
-
-#if (HAVE_FILESYSTEM && USE_STDFILESYSTEM)
-using namespace std::filesystem;
-#else /* (HAVE_FILESYSTEM && USE_STDFILESYSTEM) */
 using perms = unsigned;
-
 bool exists(const std::string& file, std::error_code& err) noexcept;
 bool create_directory(const std::string& file, std::error_code& err) noexcept;
 bool remove(const std::string& file, std::error_code& err) noexcept;
 void permissions(const std::string& file, perms prms, std::error_code& err) noexcept;
-#endif /* (HAVE_FILESYSTEM && USE_STDFILESYSTEM) */
 } /* namespace fs */
 
 #endif /* FILESYSTEM_H */

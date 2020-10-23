@@ -19,8 +19,10 @@ rwregress_LDADD = \
 
 if !HAVE_FILESYSTEM
 FS_IMPL = filesystem.cc
+FS_HEAD = filesystem.h
 else
 FS_IMPL =
+FS_HEAD =
 endif
 
 
@@ -40,6 +42,7 @@ libu7file_la_SOURCES =	\
 	U7obj.cc	\
 	U7obj.h	\
 	$(FS_IMPL) \
+	$(FS_HEAD) \
 	filesystem.h \
 	utils.cc	\
 	utils.h		\
