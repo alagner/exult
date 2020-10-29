@@ -20,3 +20,4 @@ add_compile_definitions(EXULT_DATADIR="/Library/Application\ Support/Exult/data"
 
 add_subdirectory(files)
 add_subdirectory(Audio)
+add_subdirectory(conf)
