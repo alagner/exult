@@ -5,6 +5,7 @@ set(rwregress_SOURCES
 	utils.h
 )
 
+add_compile_definitions(HAVE_STDFILESYSTEM=1)
 include_directories(../)
 include_directories(../headers)
 add_subdirectory(sha1)
