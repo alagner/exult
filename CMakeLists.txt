@@ -9,6 +9,9 @@ set(CMAKE_VERBOSE_MAKEFILE OFF)
 
 #TODO use Conan to pull-in SDL
 find_package(SDL2 REQUIRED)
+find_library(OGG ogg)
+find_library(VORBIS vorbis)
+find_library(VORBISFILE vorbisfile)
 include_directories(${SDL2_INCLUDE_DIRS})
 
 include_directories(.)
@@ -27,8 +30,6 @@ include_directories(gamemgr)
 include_directories(pathfinder)
 include_directories(usecode)
 
-#TODO same with vorbis -> Conan
-#find_package(libvorbis REQUIRED)
 include_directories(/usr/local/include)
 
 
@@ -143,6 +144,9 @@ add_library(exult_main OBJECT
 
 add_executable(exult
 	$<TARGET_OBJECTS:libaudio>
+	$<TARGET_OBJECTS:libmidi_drivers>
+	$<TARGET_OBJECTS:libserver>
+	$<TARGET_OBJECTS:libflic>
 	$<TARGET_OBJECTS:libgamemgr>
 	$<TARGET_OBJECTS:libconf>
 	$<TARGET_OBJECTS:libshapes>
@@ -156,4 +160,4 @@ add_executable(exult
 	$<TARGET_OBJECTS:exult_main>
 )
 
-target_link_libraries(exult ${SDL2_LIBRARIES})
+target_link_libraries(exult ${SDL2_LIBRARIES} ${OGG} ${VORBIS} ${VORBISFILE})
