@@ -23,6 +23,6 @@ set(libgamegmr_SOURCES
 	modmgr.h
 )
 
-add_library(libgamegmr OBJECT
+add_library(libgamemgr OBJECT
 	${libgamegmr_SOURCES}
 )
