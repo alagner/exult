@@ -1,0 +1,94 @@
+cmake_minimum_required(VERSION 3.5)
+
+include_directories(.)
+include_directories(..)
+include_directories(../objs)
+include_directories(../audio)
+include_directories(../audio/midi_drivers)
+include_directories(../conf)
+include_directories(../files)
+include_directories(../headers)
+include_directories(../shapes)
+include_directories(../imagewin)
+include_directories(../usecode)
+include_directories(../data)
+include_directories(../shapes/shapeinf)
+
+set(libgumps_SOURCES
+	Actor_gump.cc
+	Actor_gump.h
+	Book_gump.cc
+	Book_gump.h
+	File_gump.cc
+	File_gump.h
+	Gamemenu_gump.cc
+	Gamemenu_gump.h
+	Gump.cc
+	Gump.h
+	Gump_button.cc
+	Gump_button.h
+	gump_utils.h
+	Gump_widget.cc
+	Gump_widget.h
+	misc_buttons.cc
+	misc_buttons.h
+	Modal_gump.h
+	Notebook_gump.cc
+	Notebook_gump.h
+	Paperdoll_gump.cc
+	Paperdoll_gump.h
+	Scroll_gump.cc
+	Scroll_gump.h
+	Sign_gump.cc
+	Sign_gump.h
+	Slider_gump.cc
+	Slider_gump.h
+	Spellbook_gump.cc
+	Spellbook_gump.h
+	Stats_gump.cc
+	Stats_gump.h
+	Text_gump.cc
+	Text_gump.h
+	Yesno_gump.cc
+	Yesno_gump.h
+	Newfile_gump.cc
+	Newfile_gump.h
+	AudioOptions_gump.cc
+	AudioOptions_gump.h
+	VideoOptions_gump.cc
+	VideoOptions_gump.h
+	GameplayOptions_gump.cc
+	GameplayOptions_gump.h
+	MiscOptions_gump.cc
+	MiscOptions_gump.h
+	Gump_ToggleButton.cc
+	Gump_ToggleButton.h
+	CombatStats_gump.cc
+	CombatStats_gump.h
+	gump_types.h
+	Face_button.cc
+	Face_button.h
+	Jawbone_gump.cc
+	Jawbone_gump.h
+	Gump_manager.cc
+	Gump_manager.h
+	Face_stats.cc
+	Face_stats.h
+	Text_button.cc
+	Text_button.h
+	Enabled_button.cc
+	Enabled_button.h
+	ShortcutBar_gump.cc
+	ShortcutBar_gump.h
+	ItemMenu_gump.cc
+	ItemMenu_gump.h
+	InputOptions_gump.cc
+	InputOptions_gump.h
+)
+
+add_library(libgumps OBJECT
+	${libgumps_SOURCES}
+)
+
+
+
