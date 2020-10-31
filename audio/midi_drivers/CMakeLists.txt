@@ -15,6 +15,9 @@ include_directories(../../imagewin)
 add_subdirectory(timidity)
 add_subdirectory(mt32emu)
 
+#TODO make it conditional
+add_compile_definitions(MT32EMU_EXPORTS_TYPE=0)
+add_compile_definitions(MT32EMU_API_TYPE=0)
 
 set(libmidi_drivers_SOURCES
 	ALSAMidiDriver.cpp

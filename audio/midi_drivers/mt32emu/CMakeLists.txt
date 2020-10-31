@@ -4,6 +4,8 @@ add_compile_definitions(MT32EMU_VERSION_MAJOR=2)
 add_compile_definitions(MT32EMU_VERSION_MINOR=0)
 add_compile_definitions(MT32EMU_VERSION_PATCH=0)
 add_compile_definitions(MT32EMU_VERSION="2.0.0")
+add_compile_definitions(MT32EMU_EXPORT_TYPE=0)
+add_compile_definitions(MT32EMU_API_TYPE=0)
 
 include_directories(.)
 include_directories(../../../objs)
