@@ -12,6 +12,7 @@ find_package(SDL2 REQUIRED)
 find_library(OGG ogg)
 find_library(VORBIS vorbis)
 find_library(VORBISFILE vorbisfile)
+find_library(ZLIB z)
 include_directories(${SDL2_INCLUDE_DIRS})
 
 include_directories(.)
@@ -160,4 +161,4 @@ add_executable(exult
 	$<TARGET_OBJECTS:exult_main>
 )
 
-target_link_libraries(exult ${SDL2_LIBRARIES} ${OGG} ${VORBIS} ${VORBISFILE})
+target_link_libraries(exult ${SDL2_LIBRARIES} ${OGG} ${VORBIS} ${VORBISFILE} ${ZLIB} "-framework CoreFoundation" "-framework AudioUnit" "-framework AudioToolBox" "-framework CoreMidi")
