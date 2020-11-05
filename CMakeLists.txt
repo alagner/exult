@@ -50,6 +50,7 @@ add_subdirectory(server)
 add_subdirectory(usecode)
 add_subdirectory(pathfinder)
 add_subdirectory(objs)
+add_subdirectory(tools)
 
 set(exult_SOURCES
 	actions.cc
