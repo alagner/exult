@@ -51,6 +51,7 @@ add_subdirectory(usecode)
 add_subdirectory(pathfinder)
 add_subdirectory(objs)
 add_subdirectory(tools)
+add_subdirectory(data)
 
 set(exult_SOURCES
 	actions.cc
@@ -162,4 +163,16 @@ add_executable(exult
 	$<TARGET_OBJECTS:exult_main>
 )
 
-target_link_libraries(exult ${SDL2_LIBRARIES} ${OGG} ${VORBIS} ${VORBISFILE} ${ZLIB} "-framework CoreFoundation" "-framework AudioUnit" "-framework AudioToolBox" "-framework CoreMidi")
+add_dependencies(exult exult_flx)
+
+target_link_libraries(exult
+	${SDL2_LIBRARIES}
+	${OGG}
+	${VORBIS}
+	${VORBISFILE}
+	${ZLIB}
+	"-framework CoreFoundation"
+	"-framework AudioUnit"
+	"-framework AudioToolBox"
+	"-framework CoreMidi"
+)
