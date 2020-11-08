@@ -142,31 +142,30 @@ set(exult_SOURCES
 	xdrag.h
 )
 
-add_library(exult_main OBJECT
+add_library(exult_main STATIC
 	${exult_SOURCES}
 )
 
-add_executable(exult
-	$<TARGET_OBJECTS:libaudio>
-	$<TARGET_OBJECTS:libmidi_drivers>
-	$<TARGET_OBJECTS:libserver>
-	$<TARGET_OBJECTS:libflic>
-	$<TARGET_OBJECTS:libgamemgr>
-	$<TARGET_OBJECTS:libconf>
-	$<TARGET_OBJECTS:libshapes>
-	$<TARGET_OBJECTS:libshapeinf>
-	$<TARGET_OBJECTS:libusecode>
-	$<TARGET_OBJECTS:libu7file>
-	$<TARGET_OBJECTS:libgumps>
-	$<TARGET_OBJECTS:libimagewin>
-	$<TARGET_OBJECTS:libpathfinder>
-	$<TARGET_OBJECTS:libobjs>
-	$<TARGET_OBJECTS:exult_main>
-)
+add_executable(exult)
 
 add_dependencies(exult exult_flx)
 
 target_link_libraries(exult
+	libaudio
+	libmidi_drivers
+	libserver
+	libflic
+	libgamemgr
+	libconf
+	libshapes
+	libshapeinf
+	libusecode
+	libu7file
+	libgumps
+	libimagewin
+	libpathfinder
+	libobjs
+	exult_main
 	${SDL2_LIBRARIES}
 	${OGG}
 	${VORBIS}
