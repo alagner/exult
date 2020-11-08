@@ -17,7 +17,7 @@ include_directories(midi_drivers)
 add_subdirectory(midi_drivers)
 
 
-set(libaudio_SOURCES
+set(audio_SOURCES
 	Audio.cc
 	Audio.h
 	Midi.cc
@@ -43,7 +43,7 @@ set(libaudio_SOURCES
 	WavAudioSample.h
 )
 
-add_library(libaudio OBJECT 
-	${libaudio_SOURCES}
-	$<TARGET_OBJECTS:libmidi_drivers>
+add_library(audio OBJECT 
+	${audio_SOURCES}
+	$<TARGET_OBJECTS:midi_drivers>
 )

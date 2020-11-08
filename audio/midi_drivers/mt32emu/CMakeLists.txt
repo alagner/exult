@@ -14,7 +14,7 @@ include_directories(../../../gump)
 include_directories(../../../files)
 include_directories(../../../shapes)
 
-set(libmt32emu_SOURCES
+set(mt32emu_SOURCES
 	Analog.cpp
 	Analog.h
 	BReverbModel.cpp
@@ -61,6 +61,6 @@ set(libmt32emu_SOURCES
 	Types.h
 )
 
-add_library(libmt32emu OBJECT 
-	${libmt32emu_SOURCES}
+add_library(mt32emu OBJECT 
+	${mt32emu_SOURCES}
 )

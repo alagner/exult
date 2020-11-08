@@ -10,7 +10,7 @@ include_directories(../shapes)
 include_directories(../usecode)
 include_directories(../gumps)
 
-set(libserver_SOURCES
+set(server_SOURCES
 	objserial.cc
 	objserial.h
 	servemsg.cc
@@ -21,8 +21,8 @@ set(libserver_SOURCES
 	servewin32.h
 )
 
-add_library(libserver OBJECT
-	${libserver_SOURCES}
+add_library(server OBJECT
+	${server_SOURCES}
 )
 
 

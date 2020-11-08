@@ -12,7 +12,7 @@ include_directories(../audio)
 include_directories(../audio/midi_drivers)
 include_directories(../usecode)
 
-set(libobjs_SOURCES
+set(objs_SOURCES
 	animate.cc
 	animate.h
 	barge.cc
@@ -47,7 +47,7 @@ set(libobjs_SOURCES
 	objnames.cc
 )
 
-add_library(libobjs OBJECT
-	${libobjs_SOURCES}
+add_library(objs OBJECT
+	${objs_SOURCES}
 )
 

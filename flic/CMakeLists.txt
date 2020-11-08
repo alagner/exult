@@ -7,13 +7,13 @@ include_directories(../shapes)
 include_directories(../files)
 include_directories(../imagewin)
 
-set(libflic_SOURCES
+set(flic_SOURCES
 	playfli.cc
 	playfli.h
 )
 
-add_library(libflic OBJECT
-	${libflic_SOURCES}
+add_library(flic OBJECT
+	${flic_SOURCES}
 )
 
 

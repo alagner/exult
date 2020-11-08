@@ -9,7 +9,7 @@ include_directories(../../../files)
 include_directories(../../../shapes)
 include_directories(../../../headers)
 
-set(libtimidity_SOURCES
+set(timidity_SOURCES
 	timidity.cpp
 	timidity.h
 	timidity_common.cpp
@@ -36,6 +36,6 @@ set(libtimidity_SOURCES
 	timidity_tables.h
 )
 
-add_library(libtimidity OBJECT 
-	${libtimidity_SOURCES}
+add_library(timidity OBJECT 
+	${timidity_SOURCES}
 )

@@ -19,7 +19,7 @@ add_subdirectory(mt32emu)
 add_compile_definitions(MT32EMU_EXPORTS_TYPE=0)
 add_compile_definitions(MT32EMU_API_TYPE=0)
 
-set(libmidi_drivers_SOURCES
+set(midi_drivers_SOURCES
 	ALSAMidiDriver.cpp
 	ALSAMidiDriver.h
 	CoreAudioMidiDriver.cpp
@@ -55,8 +55,8 @@ set(libmidi_drivers_SOURCES
 	FluidSynthMidiDriver.h
 )
 
-add_library(libmidi_drivers OBJECT 
-	${libmidi_drivers_SOURCES}
-	$<TARGET_OBJECTS:libtimidity>
-	$<TARGET_OBJECTS:libmt32emu>
+add_library(midi_drivers OBJECT 
+	${midi_drivers_SOURCES}
+	$<TARGET_OBJECTS:timidity>
+	$<TARGET_OBJECTS:mt32emu>
 )

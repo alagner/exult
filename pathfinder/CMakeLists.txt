@@ -5,7 +5,7 @@ include_directories(..)
 include_directories(../objs)
 include_directories(../headers)
 
-set(libpathfinder_SOURCES
+set(pathfinder_SOURCES
 	Astar.cc
 	Astar.h
 	PathFinder.cc
@@ -15,6 +15,6 @@ set(libpathfinder_SOURCES
 	path.cc
 )
 
-add_library(libpathfinder OBJECT
-	${libpathfinder_SOURCES}
+add_library(pathfinder OBJECT
+	${pathfinder_SOURCES}
 )

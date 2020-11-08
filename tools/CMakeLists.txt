@@ -15,6 +15,6 @@ set(expack_SOURCES
 
 add_executable(expack
 	${expack_SOURCES}
-	$<TARGET_OBJECTS:libu7file>
+	$<TARGET_OBJECTS:u7file>
 )
 #TODO other tools!!!!

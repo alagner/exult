@@ -17,7 +17,7 @@ include_directories(../audio/midi_drivers)
 #add_subdirectory(compiler)
 add_subdirectory(ucxt)
 
-set(libusecode_SOURCES
+set(usecode_SOURCES
 	bgintrinsics.h
 	siintrinsics.h
 	sibetaintrinsics.h
@@ -52,7 +52,7 @@ set(libusecode_SOURCES
 	usefuns.h
 )
 
-add_library(libusecode OBJECT
-	${libusecode_SOURCES}
+add_library(usecode OBJECT
+	${usecode_SOURCES}
 )
 

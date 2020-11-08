@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.5)
 
 include_directories(.)
-set(libminizip_SOURCES
+set(minizip_SOURCES
 	zip.cc
 	zip.h
 	unzip.cc
 	unzip.h
 )
 
-add_library(libminizip OBJECT ${libminizip_SOURCES})
+add_library(minizip OBJECT ${minizip_SOURCES})

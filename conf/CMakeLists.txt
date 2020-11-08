@@ -5,15 +5,15 @@ include_directories(..)
 include_directories(../headers)
 include_directories(../files)
 
-set(libconf_SOURCES
+set(conf_SOURCES
 	Configuration.cc
 	Configuration.h
 	XMLEntity.cc
 	XMLEntity.h
 )
 
-add_library(libconf OBJECT
-	${libconf_SOURCES}
+add_library(conf OBJECT
+	${conf_SOURCES}
 )
 
 
@@ -23,7 +23,7 @@ set(confregres_SOURCES
 
 add_executable(confregress
 	${confregres_SOURCES}
-	$<TARGET_OBJECTS:libconf>
-	$<TARGET_OBJECTS:libu7file>
+	$<TARGET_OBJECTS:conf>
+	$<TARGET_OBJECTS:u7file>
 )
 

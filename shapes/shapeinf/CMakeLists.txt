@@ -6,7 +6,7 @@ include_directories(../..)
 include_directories(../../headers)
 include_directories(../../files)
 
-set(libshapeinf_SOURCES
+set(shapeinf_SOURCES
 	ammoinf.cc
 	ammoinf.h
 	aniinf.cc
@@ -43,8 +43,8 @@ set(libshapeinf_SOURCES
 	weaponinf.h
 )
 
-add_library(libshapeinf OBJECT
-	${libshapeinf_SOURCES}
+add_library(shapeinf OBJECT
+	${shapeinf_SOURCES}
 )
 
 

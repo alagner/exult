@@ -13,7 +13,7 @@ include_directories(../objs)
 
 add_subdirectory(shapeinf)
 
-set(libshapes_SOURCES
+set(shapes_SOURCES
 	font.cc
 	font.h
 	fontgen.cc
@@ -37,8 +37,8 @@ set(libshapes_SOURCES
 	vgafile.h
 )
 
-add_library(libshapes OBJECT
-	${libshapes_SOURCES}
+add_library(shapes OBJECT
+	${shapes_SOURCES}
 )
 
 

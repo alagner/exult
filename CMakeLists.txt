@@ -151,20 +151,20 @@ add_executable(exult)
 add_dependencies(exult exult_flx)
 
 target_link_libraries(exult
-	libaudio
-	libmidi_drivers
-	libserver
-	libflic
-	libgamemgr
-	libconf
-	libshapes
-	libshapeinf
-	libusecode
-	libu7file
-	libgumps
-	libimagewin
-	libpathfinder
-	libobjs
+	audio
+	midi_drivers
+	server
+	flic
+	gamemgr
+	conf
+	shapes
+	shapeinf
+	usecode
+	u7file
+	gumps
+	imagewin
+	pathfinder
+	objs
 	exult_main
 	${SDL2_LIBRARIES}
 	${OGG}

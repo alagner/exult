@@ -6,7 +6,7 @@ include_directories(../files)
 include_directories(../conf)
 include_directories(../headers)
 
-set(libimagewin_SOURCES
+set(imagewin_SOURCES
 	ibuf8.cc
 	ibuf8.h
 	imagebuf.cc
@@ -48,6 +48,6 @@ set(libimagewin_SOURCES
 	scale_xbr.h
 )
 
-add_library(libimagewin OBJECT
-	${libimagewin_SOURCES}
+add_library(imagewin OBJECT
+	${imagewin_SOURCES}
 )

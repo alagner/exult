@@ -11,7 +11,7 @@ include_directories(../headers)
 add_subdirectory(sha1)
 add_subdirectory(zip)
 
-set(libu7file_SOURCES
+set(u7file_SOURCES
 	Flat.cc
 	Flat.h
 	Flex.cc
@@ -38,10 +38,10 @@ set(libu7file_SOURCES
 	msgfile.h
 )
 
-add_library(libu7file OBJECT
-	${libu7file_SOURCES}
-	$<TARGET_OBJECTS:libsha1>
-	$<TARGET_OBJECTS:libminizip>
+add_library(u7file OBJECT
+	${u7file_SOURCES}
+	$<TARGET_OBJECTS:sha1>
+	$<TARGET_OBJECTS:minizip>
 )
 
 add_executable(rwregress ${rwregress_SOURCES})

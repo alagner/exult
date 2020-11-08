@@ -14,7 +14,7 @@ include_directories(../usecode)
 include_directories(../data)
 include_directories(../shapes/shapeinf)
 
-set(libgumps_SOURCES
+set(gumps_SOURCES
 	Actor_gump.cc
 	Actor_gump.h
 	Book_gump.cc
@@ -86,8 +86,8 @@ set(libgumps_SOURCES
 	InputOptions_gump.h
 )
 
-add_library(libgumps OBJECT
-	${libgumps_SOURCES}
+add_library(gumps OBJECT
+	${gumps_SOURCES}
 )
 
 

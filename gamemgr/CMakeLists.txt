@@ -12,7 +12,7 @@ include_directories(../headers)
 include_directories(../shapes)
 include_directories(../imagewin)
 
-set(libgamegmr_SOURCES
+set(gamemgr_SOURCES
 	bggame.cc
 	bggame.h
 	sigame.cc
@@ -23,6 +23,6 @@ set(libgamegmr_SOURCES
 	modmgr.h
 )
 
-add_library(libgamemgr OBJECT
-	${libgamegmr_SOURCES}
+add_library(gamemgr OBJECT
+	${gamemgr_SOURCES}
 )
