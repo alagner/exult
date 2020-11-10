@@ -171,8 +171,16 @@ target_link_libraries(exult
 	${VORBIS}
 	${VORBISFILE}
 	${ZLIB}
-	"-framework CoreFoundation"
-	"-framework AudioUnit"
-	"-framework AudioToolBox"
-	"-framework CoreMidi"
 )
+
+if(${CMAKE_HOST_SYSTEM_NAME} STREQUAL "Linux")
+	message("Building on Linux")
+	set(WINDOWING_SYSTEM="XWIN")
+elseif(CMAKE_HOST_APPLE)
+	target_link_libraries(exult
+		"-framework CoreFoundation"
+		"-framework AudioUnit"
+		"-framework AudioToolBox"
+		"-framework CoreMidi"
+	)
+endif()
